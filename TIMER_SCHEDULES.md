@@ -24,6 +24,22 @@ Each schedule entity holds that day's time windows as a single string of `HH:MM-
 
 Set the value to an empty string to clear all windows for that entity. How many windows fit per day differs per circuit (5 for DHW, 3 for heating and ventilation), and times are always whole minutes — the controller cannot set seconds.
 
+### What the times mean
+
+**An end time of `00:00` means midnight**, not "unset". `18:00-00:00` is a window running from 18:00 until the end of the day, and it is how the controller itself writes such a window — `23:59` is not needed and leaves a one-minute hole. A start time of `00:00` is equally ordinary: `00:00-12:00` runs from midnight to noon.
+
+**A window counts as unused only when *both* halves are `00:00`.** That is why `00:00-00:00` has its own meaning per circuit (see the heating warning below), while `18:00-00:00` is a perfectly normal window.
+
+So to cover everything outside 12:00–18:00 on a five-window circuit like DHW, the value is:
+
+```
+00:00-12:00/18:00-00:00
+```
+
+> **ℹ️ Note:** the midnight reading of a trailing `00:00` is observed behaviour, not a documented one. The controller's manual (*Regelaar Deel 1*, document 83055200, revision iNL) covers `00:00-00:00` but says nothing about `HH:MM-00:00`. It is how real controllers store their schedules — including units whose active program uses such a window — so it is safe to rely on, but it is not quotable from the manual.
+
+**An empty schedule does not mean "no schedule".** What it does depends on the circuit's polarity, and the two are opposites: on DHW an empty schedule blocks nothing, so hot water follows the *Mode* setting alone; on heating it leaves the circuit lowered around the clock. Read your circuit's section below before clearing one.
+
 The timer program can be switched from Home Assistant as well as on the physical controller (or its web interface), and both directions are picked up automatically.
 
 ### Only the active shape's entities are present
