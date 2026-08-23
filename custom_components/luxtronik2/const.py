@@ -131,6 +131,9 @@ WRITABLE_PARAMETER_PREFIXES: Final = (
     "THERMAL_POWER_LIMIT_HEATING",
     "THERMAL_POWER_LIMIT_WATER",
     "THERMAL_POWER_LIMIT_COOLING",
+    "SMART_GRID_HEATING_REDUCTION",
+    "SMART_GRID_HEATING_INCREASE",
+    "SMART_GRID_DHW_INCREASE",
 )
 # endregion Conf
 
@@ -527,6 +530,12 @@ class LuxParameter(StrEnum):
     P1119_LAST_DEFROST_TIMESTAMP = (
         "parameters.Unknown_Parameter_1119"  # 1685073431 -> 26.5.23 05:57
     )
+    # Smart Grid offsets, only reachable on the controller while P1030 is on
+    # (HMD2 manual 83055600 rev d, p.43). Kelvin deltas in tenths - see
+    # lux_overrides.parameters_to_add_update for the evidence. #765
+    P1120_SMART_GRID_HEATING_REDUCTION = "parameters.SMART_GRID_HEATING_REDUCTION"
+    P1121_SMART_GRID_HEATING_INCREASE = "parameters.SMART_GRID_HEATING_INCREASE"
+    P1122_SMART_GRID_DHW_INCREASE = "parameters.SMART_GRID_DHW_INCREASE"
     P1135_COOLING_HEAT_AMOUNT = "parameters.COOLING_HEAT_AMOUNT"
     P1136_HEAT_ENERGY_INPUT = "parameters.HEAT_ENERGY_INPUT"
     P1137_DHW_ENERGY_INPUT = "parameters.DHW_ENERGY_INPUT"
@@ -961,6 +970,9 @@ class SensorKey(StrEnum):
     COOLING_TARGET_TEMPERATURE_MK3 = "cooling_target_temperature_mk3"
     COOLING_MIN_FLOW_OUT_TEMPERATURE = "cooling_min_flow_out_temperature"
     SMART_GRID_SWITCH = "smartgrid"
+    SMART_GRID_HEATING_REDUCTION = "smart_grid_heating_reduction"
+    SMART_GRID_HEATING_INCREASE = "smart_grid_heating_increase"
+    SMART_GRID_DHW_INCREASE = "smart_grid_dhw_increase"
     SWITCHOFF_REASON = "switchoff_reason"
     PUMP_VENT_HUP = "pump_vent_hup"
     PUMP_VENT_TIMER_H = "pump_vent_timer_h"

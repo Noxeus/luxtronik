@@ -152,6 +152,8 @@ The **PV Mode** select entity (disabled by default) controls how the heat pump r
 ## Smart Grid & Power Limitation
 
 - **Smart Grid** (switch, config category): enables/disables the heat pump's SG-ready integration as a whole. When on, the **Smart Grid Status** sensor (see [EVU / Grid-Lock Status](#evu--grid-lock-status)) becomes available.
+- **Smart Grid heating reduction** / **Smart Grid heating increase** / **Smart Grid hot water increase** (numbers, config category): the setpoint offsets the controller applies in the SG operating states — the heating setpoint is lowered by the reduction in state 2 (both EVU contacts open) and raised by the increase in state 4 (both closed), where the DHW setpoint is raised too. Ranges follow the controller's own limits: −0.5 to −25 K, 0.5 to 5 K and 0.5 to 10 K respectively, all in 0.5 K steps, defaulting to −2 / +2 / +2 K.
+  These three exist **only while the Smart Grid switch above is on** — the controller hides them in its own service menu otherwise. Turning Smart Grid on makes them appear after the integration is reloaded (Settings → Devices & Services → Luxtronik → Reload) or Home Assistant restarts, not immediately. They are also absent on controllers whose firmware does not report these registers at all.
 - **Power limitation** / **Max. thermal power** (switches, disabled by default): turn on enforcement of the numeric power-limit entities below them (electrical power limit value; thermal power limits for heating/water/cooling) — the switches gate whether the limits are enforced at all, the number entities set the actual limit values.
 
 Like the heating-curve parameters mentioned in README §3.2, these are typically set once during commissioning; avoid toggling them frequently via automations.

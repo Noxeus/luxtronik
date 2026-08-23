@@ -7,6 +7,7 @@ from luxtronik.datatypes import (
     BivalenceLevel,
     Celsius,
     HeatpumpCode,
+    Kelvin,
     SwitchoffFile,
     Unknown,
 )
@@ -338,6 +339,53 @@ class TestInventedParameterNames:
             if not name.startswith(WRITABLE_PARAMETER_PREFIXES)
         }
         assert unreachable == set()
+
+
+class TestSmartGridTemperatureOffsets:
+    """Parameters 1120-1122, the Smart Grid offsets of #765.
+
+    Upstream leaves all three as `Unknown_Parameter_112x` / `Unknown` and
+    marks them non-writeable; this integration renames them, types them as
+    Kelvin deltas and writes them, so the mapping is pinned here.
+
+    Evidence for the mapping: the reporter's A/B test on an LWC407 moved
+    -2.0/+2.0/+2.0 K to -1.5/+2.5/+5.0 K and the registers followed
+    (-20/20/20 -> -15/25/50); the HMD2 manual (83055600 rev d, p.43) lists
+    exactly these three settings with those defaults; and across 29 pumps in
+    the diagnostics corpus every unit at factory default reads -20/20/20
+    while every deviation sits on a unit with Smart Grid switched on.
+    """
+
+    def test_parameters_are_named_and_kelvin_typed(self):
+        lux_overrides.update_Luxtronik_Parameters()
+
+        for index, name in (
+            (1120, "SMART_GRID_HEATING_REDUCTION"),
+            (1121, "SMART_GRID_HEATING_INCREASE"),
+            (1122, "SMART_GRID_DHW_INCREASE"),
+        ):
+            assert Parameters.parameters[index].name == name
+            assert isinstance(Parameters.parameters[index], Kelvin)
+
+    def test_reduction_scales_a_negative_raw_value(self):
+        """The reduction is the only negative-valued parameter this
+        integration writes, and the manual's range reaches -25 K.
+        """
+        lux_overrides.update_Luxtronik_Parameters()
+        reduction = Parameters.parameters[1120]
+
+        assert reduction.from_heatpump(-20) == -2.0
+        assert reduction.from_heatpump(-250) == -25.0
+        assert reduction.to_heatpump(-25.0) == -250
+        assert reduction.to_heatpump(-0.5) == -5
+
+    def test_increases_scale_by_tenths(self):
+        lux_overrides.update_Luxtronik_Parameters()
+
+        assert Parameters.parameters[1121].from_heatpump(50) == 5.0
+        assert Parameters.parameters[1121].to_heatpump(5.0) == 50
+        assert Parameters.parameters[1122].from_heatpump(100) == 10.0
+        assert Parameters.parameters[1122].to_heatpump(10.0) == 100
 
 
 class TestUpstreamMaxDefinedIndex:

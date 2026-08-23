@@ -264,6 +264,15 @@
             },
             "pump_optimization_time": {
                 "name": "Pump optimization time"
+            },
+            "smart_grid_heating_reduction": {
+                "name": "Smart Grid heating reduction"
+            },
+            "smart_grid_heating_increase": {
+                "name": "Smart Grid heating increase"
+            },
+            "smart_grid_dhw_increase": {
+                "name": "Smart Grid hot water increase"
             }
         },
         "sensor": {

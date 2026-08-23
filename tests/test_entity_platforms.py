@@ -383,6 +383,79 @@ class TestNumberAsyncSetupEntry:
         assert len(entities) > 0
 
 
+class TestSmartGridOffsetEntities:
+    """#765: the three Smart Grid offsets only exist while Smart Grid is on.
+
+    `_mock_coordinator` forces `entity_active` True, so these use a real
+    coordinator instead - the point is exactly what `entity_active` decides.
+    """
+
+    _KEYS = {
+        SK.SMART_GRID_HEATING_REDUCTION,
+        SK.SMART_GRID_HEATING_INCREASE,
+        SK.SMART_GRID_DHW_INCREASE,
+    }
+
+    @staticmethod
+    def _coordinator(smart_grid: int):
+        from custom_components.luxtronik2.coordinator import LuxtronikCoordinator
+
+        data = make_coordinator_data(
+            parameters={
+                "ID_Einst_SmartGrid": smart_grid,
+                # A firmware-V3.90 unit takes the DHW target from
+                # ID_Soll_BWS_akt, not ID_Einst_BWS_akt - it stands in here
+                # for "an ordinary number entity, unaffected by the gate".
+                "ID_Soll_BWS_akt": 50.0,
+                "SMART_GRID_HEATING_REDUCTION": -2.0,
+                "SMART_GRID_HEATING_INCREASE": 2.0,
+                "SMART_GRID_DHW_INCREASE": 2.0,
+            },
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+                "ID_WEB_Zaehler_BetrZeitBW": 100,
+            },
+        )
+        client = MagicMock()
+        client.parameters = data.parameters
+        client.calculations = data.calculations
+        client.visibilities = data.visibilities
+        with patch("homeassistant.helpers.frame.report_usage"):
+            coord = LuxtronikCoordinator(
+                hass=MagicMock(),
+                client=client,
+                config={CONF_HOST: "1.2.3.4", CONF_PORT: 8889},
+            )
+        coord.data = data
+        coord.last_update_success = True
+        coord.get_device = MagicMock(return_value=MagicMock())
+        return coord
+
+    async def _setup_keys(self, coord):
+        from custom_components.luxtronik2.number import async_setup_entry
+
+        entry = _mock_entry()
+        entry.runtime_data = coord
+        add = MagicMock()
+        with patch("homeassistant.helpers.frame.report_usage"):
+            await async_setup_entry(MagicMock(), entry, add)
+        return {e.entity_description.key for e in add.call_args[0][0]}
+
+    @pytest.mark.asyncio
+    async def test_created_when_smart_grid_is_on(self):
+        keys = await self._setup_keys(self._coordinator(1))
+        assert keys >= self._KEYS
+
+    @pytest.mark.asyncio
+    async def test_not_created_when_smart_grid_is_off(self):
+        keys = await self._setup_keys(self._coordinator(0))
+        assert not (self._KEYS & keys)
+        # Other numbers are unaffected - the gate is not tearing the platform
+        # down wholesale.
+        assert SK.DHW_TARGET_TEMPERATURE in keys
+
+
 # ===========================================================================
 # LuxtronikNumberEntity
 # ===========================================================================
@@ -460,6 +533,35 @@ class TestLuxtronikNumberEntity:
         # value / factor = 50.0 / 0.1 = 500
         call_args = coord.async_write.call_args
         assert call_args[0][1] == 500
+
+    @pytest.mark.asyncio
+    async def test_async_set_native_value_negative_passes_through(self):
+        """The Smart Grid heating reduction is the only negative value this
+        integration writes. It carries no `factor`, so the float must reach
+        `async_write` unconverted and the library's Kelvin datatype does the
+        x10 - a factor applied here would double-scale it. #765
+        """
+        from custom_components.luxtronik2.number import LuxtronikNumberEntity
+
+        data = make_coordinator_data(parameters={"SMART_GRID_HEATING_REDUCTION": -2.0})
+        coord = _mock_coordinator(data)
+        desc = LuxtronikNumberDescription(
+            key=SK.SMART_GRID_HEATING_REDUCTION,
+            luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+            device_key=DeviceKey.heating,
+        )
+        entry = _mock_entry()
+        with patch("homeassistant.helpers.frame.report_usage"):
+            entity = LuxtronikNumberEntity(
+                MagicMock(), entry, coord, desc, DeviceKey.heating
+            )
+        _patch_entity_hass(entity)
+
+        entity._pending_value = -1.5
+        await entity._async_set_native_value()
+
+        coord.async_write.assert_called_once()
+        assert coord.async_write.call_args[0][1] == -1.5
 
     @pytest.mark.asyncio
     async def test_async_set_native_value_no_pending(self):

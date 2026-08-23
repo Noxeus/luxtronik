@@ -20,7 +20,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 from packaging.version import InvalidVersion, Version
 
-from .common import get_sensor_data, normalize_sensor_value
+from .common import get_sensor_data, normalize_sensor_value, smart_grid_enabled
 from .const import (
     CONF_CALCULATIONS,
     CONF_MAX_DATA_LENGTH,
@@ -683,6 +683,24 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
 
         if not self.device_key_active(description.device_key):
             return False
+        if description.visibility == LP.P1030_SMART_GRID_SWITCH:
+            # The Smart Grid offsets do not exist in the controller's own menu
+            # while Smart Grid is off (HMD2 manual 83055600 rev d, p.30), so
+            # they should not exist here either - 25 of the 29 pumps in the
+            # diagnostics corpus are in that state and would otherwise carry
+            # three permanently-unused entities. P1030 holds a mode rather
+            # than a flag, hence the helper instead of a truthiness test. #765
+            if not smart_grid_enabled(self.data):
+                return False
+            # `key_exists` cannot stand in for a presence check here: its
+            # `_register_returned` only infers absence above
+            # UPSTREAM_MAX_DEFINED_INDEX (1125), and these three sit below it.
+            # One corpus unit returns P1030 but ends its parameter block
+            # before 1120, and would get three unwritable entities stuck on
+            # unknown. Reading None cannot mean "present but undecodable" for
+            # a Kelvin register, so it means the controller never sent it.
+            if self.get_value(description.luxtronik_key) is None:
+                return False
         if description.entity_active_formula is not None:
             active_value = self.get_value(description.luxtronik_key)
             if active_value is None:
