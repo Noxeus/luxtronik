@@ -264,6 +264,15 @@
             },
             "heat_source_input_temperature_min": {
                 "name": "Warmtebron invoer minimum temperatuur"
+            },
+            "smart_grid_heating_reduction": {
+                "name": "Smart Grid verlaging verwarmen"
+            },
+            "smart_grid_heating_increase": {
+                "name": "Smart Grid verhoging verwarmen"
+            },
+            "smart_grid_dhw_increase": {
+                "name": "Smart Grid verhoging tapwater"
             }
         },
         "sensor": {

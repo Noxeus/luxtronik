@@ -717,6 +717,37 @@ class TestTimerScheduleSync:
         ]
 
     @pytest.mark.asyncio
+    async def test_apply_without_coordinator_data_changes_nothing(self):
+        """A poll that produced no data at all concludes nothing.
+
+        `_active_schedule_descriptions` returns None only in that case, and
+        the entities already live must then survive untouched - removing or
+        disabling them on a failed read is exactly the churn the per-circuit
+        freeze elsewhere in this method exists to avoid.
+        """
+        from custom_components.luxtronik2.text import LuxtronikTimerScheduleText
+
+        sync, coord, added = self._make_sync("week")
+        registry = self._registry({})
+        with (
+            patch(
+                "custom_components.luxtronik2.text.er.async_get", return_value=registry
+            ),
+            patch("homeassistant.helpers.frame.report_usage"),
+        ):
+            await sync.async_setup()
+            live_before = list(added)
+            coord.data = None
+            with patch.object(
+                LuxtronikTimerScheduleText, "async_remove", new=AsyncMock()
+            ) as remove:
+                await sync.async_apply()
+
+        assert added == live_before
+        remove.assert_not_awaited()
+        registry.async_update_entity.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_overlapping_apply_calls_are_serialized(self):
         """Two overlapping `async_apply()` calls must not interleave.
 

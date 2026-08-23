@@ -481,6 +481,37 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         entity_registry_enabled_default=False,
         factor=1,
     ),
+    # Smart Grid setpoint offsets. Ranges and 0.5 K step come from the HMD2
+    # manual (83055600 rev d, p.43); zero is deliberately outside them, since
+    # the controller's own smallest offset is 0.5 K. `visibility` makes
+    # `entity_active` drop these entirely while Smart Grid is off - they are
+    # not reachable in the controller's menu then either. #765
+    LuxtronikNumberDescription(
+        key=SensorKey.SMART_GRID_HEATING_REDUCTION,
+        luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+        device_key=DeviceKey.heating,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.KELVIN,
+        native_min_value=-25.0,
+        native_max_value=-0.5,
+        native_step=0.5,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.BOX,
+        visibility=LP.P1030_SMART_GRID_SWITCH,
+    ),
+    LuxtronikNumberDescription(
+        key=SensorKey.SMART_GRID_HEATING_INCREASE,
+        luxtronik_key=LP.P1121_SMART_GRID_HEATING_INCREASE,
+        device_key=DeviceKey.heating,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.KELVIN,
+        native_min_value=0.5,
+        native_max_value=5.0,
+        native_step=0.5,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.BOX,
+        visibility=LP.P1030_SMART_GRID_SWITCH,
+    ),
     # endregion Heating
     # region Domestic water
     LuxtronikNumberDescription(
@@ -573,6 +604,19 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         native_step=1,
         entity_category=EntityCategory.CONFIG,
         mode=NumberMode.BOX,
+    ),
+    LuxtronikNumberDescription(
+        key=SensorKey.SMART_GRID_DHW_INCREASE,
+        luxtronik_key=LP.P1122_SMART_GRID_DHW_INCREASE,
+        device_key=DeviceKey.domestic_water,
+        device_class=NumberDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.KELVIN,
+        native_min_value=0.5,
+        native_max_value=10.0,
+        native_step=0.5,
+        entity_category=EntityCategory.CONFIG,
+        mode=NumberMode.BOX,
+        visibility=LP.P1030_SMART_GRID_SWITCH,
     ),
     # region Solar
     LuxtronikNumberDescription(

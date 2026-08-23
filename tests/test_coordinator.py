@@ -764,6 +764,136 @@ class TestEntityActive:
         desc.device_key = DeviceKey.heatpump
         assert coord.entity_active(desc) is False
 
+    def test_smart_grid_offsets_inactive_when_switched_off(self):
+        """P1030 = 0 means the Smart Grid submenu does not exist on the
+        controller either, so its three offsets must not become entities
+        (#765). 25 of the 29 pumps in the diagnostics corpus are in this
+        state.
+        """
+        coord = _make_coordinator(
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+            },
+            parameters={"ID_Einst_SmartGrid": 0},
+        )
+        desc = LuxtronikEntityDescription(
+            key="test",
+            luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+            device_key=DeviceKey.heating,
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_active(desc) is False
+
+    def test_smart_grid_offsets_active_when_switched_on(self):
+        coord = _make_coordinator(
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+            },
+            parameters={
+                "ID_Einst_SmartGrid": 1,
+                "SMART_GRID_HEATING_REDUCTION": -2.0,
+            },
+        )
+        desc = LuxtronikEntityDescription(
+            key="test",
+            luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+            device_key=DeviceKey.heating,
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_active(desc) is True
+
+    def test_smart_grid_offsets_active_for_non_flag_mode_value(self):
+        """P1030 holds a mode, not a flag: the Luxtronik 2.0 unit in #669
+        reports 3 with Smart Grid on, and the WZS in the corpus does too.
+        An `== 1` gate would wrongly drop the entities there.
+        """
+        coord = _make_coordinator(
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+            },
+            parameters={
+                "ID_Einst_SmartGrid": 3,
+                "SMART_GRID_HEATING_REDUCTION": -2.0,
+            },
+        )
+        desc = LuxtronikEntityDescription(
+            key="test",
+            luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+            device_key=DeviceKey.heating,
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_active(desc) is True
+
+    def test_smart_grid_offsets_need_the_register_to_be_returned(self):
+        """`key_exists` cannot gate these: `_register_returned` only infers
+        absence above UPSTREAM_MAX_DEFINED_INDEX, which is 1125, so 1120-1122
+        sit inside upstream's range and pass unconditionally.
+
+        The controller in diagnostics/200927_014f returns P1030 but stops its
+        parameter block before 1120. With Smart Grid on, such a unit would
+        otherwise get three permanently unknown, unwritable entities - the
+        same failure #738 fixed elsewhere.
+        """
+        coord = _make_coordinator(
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+            },
+            parameters={"ID_Einst_SmartGrid": 1},
+        )
+        desc = LuxtronikEntityDescription(
+            key="test",
+            luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+            device_key=DeviceKey.heating,
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_active(desc) is False
+
+    def test_smart_grid_offsets_inactive_when_p1030_is_absent(self):
+        """A controller that never returns P1030 cannot be running Smart
+        Grid, so the gate must fall closed rather than open.
+        """
+        coord = _make_coordinator(
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+            },
+            parameters={"SMART_GRID_HEATING_REDUCTION": -2.0},
+        )
+        desc = LuxtronikEntityDescription(
+            key="test",
+            luxtronik_key=LP.P1120_SMART_GRID_HEATING_REDUCTION,
+            device_key=DeviceKey.heating,
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_active(desc) is False
+
+    def test_smart_grid_dhw_offset_needs_a_dhw_circuit(self):
+        """The Smart Grid gate must not overrule the device gate: a unit
+        without domestic water has no DHW setpoint to raise.
+        """
+        coord = _make_coordinator(
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Zaehler_BetrZeitHz": 100,
+                "ID_WEB_Zaehler_BetrZeitBW": 0,
+            },
+            parameters={
+                "ID_Einst_SmartGrid": 1,
+                "SMART_GRID_DHW_INCREASE": 2.0,
+            },
+        )
+        desc = LuxtronikEntityDescription(
+            key="test",
+            luxtronik_key=LP.P1122_SMART_GRID_DHW_INCREASE,
+            device_key=DeviceKey.domestic_water,
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_active(desc) is False
+
     def test_solar_visibility_active(self):
         coord = _make_coordinator_direct()
         coord._is_version_not_compatible = MagicMock(return_value=False)

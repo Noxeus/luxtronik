@@ -264,6 +264,15 @@
             },
             "pump_optimization_time": {
                 "name": "Doba trvání optimalizace čerpadla"
+            },
+            "smart_grid_heating_reduction": {
+                "name": "Smart Grid snížení vytápění"
+            },
+            "smart_grid_heating_increase": {
+                "name": "Smart Grid zvýšení vytápění"
+            },
+            "smart_grid_dhw_increase": {
+                "name": "Smart Grid zvýšení teplé vody"
             }
         },
         "sensor": {

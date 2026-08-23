@@ -264,6 +264,15 @@
             },
             "cooling_threshold_temperature": {
                 "name": "Temperatura progu chłodzenia"
+            },
+            "smart_grid_heating_reduction": {
+                "name": "Smart Grid obniżenie ogrzewania"
+            },
+            "smart_grid_heating_increase": {
+                "name": "Smart Grid podwyższenie ogrzewania"
+            },
+            "smart_grid_dhw_increase": {
+                "name": "Smart Grid podwyższenie CWU"
             }
         },
         "sensor": {

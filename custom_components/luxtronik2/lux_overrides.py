@@ -178,6 +178,22 @@ parameters_to_add_update = {
     993: Celsius("ID_Einst_min_VL_Kuehl", True),
     979: Celsius("ID_Einst_Minimale_Ruecklaufsolltemperatur", True),
     1045: FrequencyAutomatic("ID_Einst_P155_DHW_Freq", True),
+    # Smart Grid temperature offsets, #765. Upstream leaves all three as
+    # Unknown_Parameter_112x / Unknown and marks them non-writeable; the
+    # controller writes them from its own service menu, so that flag is
+    # overridden here deliberately.
+    #
+    # They are Kelvin deltas stored in tenths, established three ways: the
+    # reporter's A/B test on an LWC407 (V1.86.2) moved the controller from
+    # -2.0/+2.0/+2.0 K to -1.5/+2.5/+5.0 K and the registers followed
+    # (-20/20/20 -> -15/25/50); the HMD2 manual (83055600 rev d, p.43) lists
+    # the same three settings under "Smart Grid" with those defaults and
+    # ranges; and across 29 pumps in the diagnostics corpus every unit at
+    # factory default reads -20/20/20, while all four deviating units are
+    # exactly the four with Smart Grid switched on at P1030.
+    1120: Kelvin("SMART_GRID_HEATING_REDUCTION", True),
+    1121: Kelvin("SMART_GRID_HEATING_INCREASE", True),
+    1122: Kelvin("SMART_GRID_DHW_INCREASE", True),
     1146: Celsius("Extra_DHW_target_temp", True),
     1147: SecondsToHours("Extra_DHW_duration", True),
     1148: Celsius("HEATING_TARGET_TEMP_ROOM_THERMOSTAT", True),
