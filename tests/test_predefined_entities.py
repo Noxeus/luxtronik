@@ -151,3 +151,25 @@ class TestFirmwareVersionFields:
             for descr in _all_descriptions()
             for name in self.FIELDS
         )
+
+    def test_no_description_gates_on_the_absolute_version(self):
+        """Register gates must compare the minor version, not the whole one.
+
+        The firmware major digit is the controller *series* - V1.x, V2.x and
+        V3.x are different hardware generations - and it never advances on a
+        firmware update. Only the minor digit tracks the register layout, so
+        `Version("3.90.1")` in a gate reads every V1.x and V2.x controller as
+        older than everything and serves those owners the wrong entity set
+        regardless of how current their firmware is.
+
+        Use `min/max_firmware_version_minor`. A difference that really is
+        per-generation belongs in code, against
+        `LuxtronikCoordinator.firmware_series`.
+        """
+        offenders = [
+            (type(descr).__name__, descr.key, name, str(value))
+            for descr in _all_descriptions()
+            for name in ("min_firmware_version", "max_firmware_version")
+            if (value := getattr(descr, name, None)) is not None
+        ]
+        assert offenders == []

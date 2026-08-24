@@ -38,6 +38,7 @@ from custom_components.luxtronik2.model import (
     LuxtronikNumberDescription,
 )
 from custom_components.luxtronik2.number import LuxtronikNumberEntity
+from custom_components.luxtronik2.number_entities_predefined import NUMBER_SENSORS
 
 _ENTRY_DATA = {
     CONF_HOST: "192.168.1.100",
@@ -628,3 +629,132 @@ class TestEfficiencyPump:
         coord = _make_coordinator_direct(data)
         assert coord.entity_visible(desc_volt) is False
         assert coord.entity_visible(desc_percent) is True
+
+
+# ===========================================================================
+# Firmware gates must be series-agnostic
+# ===========================================================================
+
+
+def _coord_on_firmware(version: str) -> LuxtronikCoordinator:
+    """Build a real coordinator reporting `version` as its firmware."""
+    return _make_coordinator_direct(
+        make_coordinator_data(calculations={"ID_WEB_SoftStand": version})
+    )
+
+
+def _number_desc(key: SensorKey, lux_key: str, **match) -> LuxtronikNumberDescription:
+    """Return the single predefined number description matching the criteria."""
+    found = [
+        d
+        for d in NUMBER_SENSORS
+        if d.key == key
+        and d.luxtronik_key == lux_key
+        and all(getattr(d, name) == value for name, value in match.items())
+    ]
+    assert len(found) == 1, f"expected exactly one description, got {len(found)}"
+    return found[0]
+
+
+class TestFirmwareGatesAreSeriesAgnostic:
+    """Register-availability gates must compare the minor version only.
+
+    The firmware major digit is the controller *series* - V1.x, V2.x and
+    V3.x are different hardware generations - and it never advances on a
+    firmware update. The minor digit is what tracks the register layout, so
+    a V1.90.1 controller carries the same registers as a V3.90.1 one.
+
+    An absolute `Version("3.90.1")` gate compares 1.90.1 as older than
+    everything, so every V1.x and V2.x owner is served the pre-90.1 entity
+    set no matter how current their firmware is. Use the `*_minor` fields;
+    for a genuine per-generation difference use `coordinator.firmware_series`.
+    """
+
+    def test_dhw_target_modern_register_active_on_v1(self):
+        """P0105 is the 90.1+ DHW setpoint and must reach a V1.90.1 unit."""
+        coord = _coord_on_firmware("V1.90.1")
+        desc = _number_desc(
+            SensorKey.DHW_TARGET_TEMPERATURE, LP.P0105_DHW_TARGET_TEMPERATURE
+        )
+        assert coord._is_version_not_compatible(desc) is False
+
+    def test_dhw_target_legacy_register_hidden_on_v1(self):
+        """P0002 is the pre-90.1 setpoint; a V1.90.1 unit must not get it."""
+        coord = _coord_on_firmware("V1.90.1")
+        desc = _number_desc(
+            SensorKey.DHW_TARGET_TEMPERATURE, LP.P0002_DHW_TARGET_TEMPERATURE
+        )
+        assert coord._is_version_not_compatible(desc) is True
+
+    def test_dhw_target_legacy_register_active_on_v2_below_cutover(self):
+        """A V2.88.0 unit predates the 90.1 change and keeps P0002."""
+        coord = _coord_on_firmware("V2.88.0")
+        desc = _number_desc(
+            SensorKey.DHW_TARGET_TEMPERATURE, LP.P0002_DHW_TARGET_TEMPERATURE
+        )
+        assert coord._is_version_not_compatible(desc) is False
+
+    def test_dhw_target_modern_register_still_active_on_v3(self):
+        """Regression guard: the V3 behaviour the absolute gates got right."""
+        coord = _coord_on_firmware("V3.90.1")
+        desc = _number_desc(
+            SensorKey.DHW_TARGET_TEMPERATURE, LP.P0105_DHW_TARGET_TEMPERATURE
+        )
+        assert coord._is_version_not_compatible(desc) is False
+
+    def test_cooling_threshold_wide_range_active_on_v2(self):
+        """The 92.1+ cooling threshold spans 10-35 C and must reach V2.92.1."""
+        coord = _coord_on_firmware("V2.92.1")
+        desc = _number_desc(
+            SensorKey.COOLING_OUTDOOR_TEMP_THRESHOLD,
+            LP.P0110_COOLING_OUTDOOR_TEMP_THRESHOLD,
+            native_min_value=10.0,
+        )
+        assert coord._is_version_not_compatible(desc) is False
+
+    def test_cooling_threshold_narrow_range_hidden_on_v2(self):
+        """The pre-92.1 variant spans 18-30 C and must not reach V2.92.1."""
+        coord = _coord_on_firmware("V2.92.1")
+        desc = _number_desc(
+            SensorKey.COOLING_OUTDOOR_TEMP_THRESHOLD,
+            LP.P0110_COOLING_OUTDOOR_TEMP_THRESHOLD,
+            native_min_value=18.0,
+        )
+        assert coord._is_version_not_compatible(desc) is True
+
+    @pytest.mark.parametrize(
+        "firmware",
+        [
+            "V1.88.0",
+            "V1.90.0",
+            "V1.90.1",
+            "V2.88.0",
+            "V2.92.0",
+            "V2.92.1",
+            "V3.90.0",
+            "V3.90.1",
+            "V3.92.1",
+        ],
+    )
+    def test_exactly_one_variant_of_each_pair_is_active(self, firmware):
+        """Paired descriptions must never both apply, nor both drop out.
+
+        Each pair shares one SensorKey, and number.py derives both
+        `entity_id` and `unique_id` from that key alone - so the two
+        variants are the same entity, differing only in which register
+        backs it (DHW) or how wide its range is (cooling). Two active
+        variants would collide on that id; zero would make the entity
+        vanish. This is also why correcting these gates needs no entity
+        registry migration.
+        """
+        coord = _coord_on_firmware(firmware)
+        for key in (
+            SensorKey.DHW_TARGET_TEMPERATURE,
+            SensorKey.COOLING_OUTDOOR_TEMP_THRESHOLD,
+        ):
+            variants = [d for d in NUMBER_SENSORS if d.key == key]
+            assert len(variants) == 2, f"{key} is no longer a gated pair"
+            active = [d for d in variants if not coord._is_version_not_compatible(d)]
+            assert len(active) == 1, (
+                f"{key} on {firmware}: {len(active)} active variants, expected 1"
+            )
