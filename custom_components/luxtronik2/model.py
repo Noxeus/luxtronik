@@ -94,6 +94,13 @@ class LuxtronikEntityDescription(EntityDescription, frozen_or_thawed=True):
     # present on both sides of a change whose *meaning* moves.
     min_firmware_version_minor: Version | None = None
     max_firmware_version_minor: Version | None = None
+    # Deprecated for descriptions: these compare the WHOLE version, whose
+    # major digit is the controller series rather than a threshold, so a
+    # V1.x or V2.x unit reads as older than any "3.x" bound no matter how
+    # current its firmware is. No predefined description may set them - see
+    # tests/test_predefined_entities.py. Kept because the coordinator still
+    # implements them; a genuinely per-generation difference belongs in code
+    # against `LuxtronikCoordinator.firmware_series`.
     min_firmware_version: Version | None = None
     max_firmware_version: Version | None = None
 

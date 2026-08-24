@@ -524,7 +524,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         native_min_value=DEFAULT_DHW_MIN_TEMPERATURE,
         native_max_value=65.0,
         native_step=0.5,
-        max_firmware_version=Version("3.90.0"),
+        max_firmware_version_minor=Version("90.0"),
     ),
     # Bug #280 since firmware 3.90.1 different set point
     LuxtronikNumberDescription(
@@ -537,7 +537,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         native_min_value=DEFAULT_DHW_MIN_TEMPERATURE,
         native_max_value=65.0,
         native_step=0.5,
-        min_firmware_version=Version("3.90.1"),
+        min_firmware_version_minor=Version("90.1"),
     ),
     LuxtronikNumberDescription(
         key=SensorKey.DHW_HYSTERESIS,
@@ -686,7 +686,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         entity_category=EntityCategory.CONFIG,
         mode=NumberMode.BOX,
         visibility=LV.V0005_COOLING,
-        min_firmware_version=Version("3.92.1"),
+        min_firmware_version_minor=Version("92.1"),
     ),
     LuxtronikNumberDescription(
         key=SensorKey.COOLING_OUTDOOR_TEMP_THRESHOLD,
@@ -701,7 +701,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         entity_category=EntityCategory.CONFIG,
         mode=NumberMode.BOX,
         visibility=LV.V0005_COOLING,
-        max_firmware_version=Version("3.92.0"),
+        max_firmware_version_minor=Version("92.0"),
     ),
     LuxtronikNumberDescription(
         key=SensorKey.COOLING_START_DELAY_HOURS,
