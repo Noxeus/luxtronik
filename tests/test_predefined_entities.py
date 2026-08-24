@@ -166,9 +166,14 @@ class TestFirmwareVersionFields:
         per-generation belongs in code, against
         `LuxtronikCoordinator.firmware_series`.
         """
+        descriptions = list(_all_descriptions())
+        # Guard the guard: a walker that silently yielded nothing would make
+        # the assertion below vacuous.
+        assert len(descriptions) > 100
+
         offenders = [
             (type(descr).__name__, descr.key, name, str(value))
-            for descr in _all_descriptions()
+            for descr in descriptions
             for name in ("min_firmware_version", "max_firmware_version")
             if (value := getattr(descr, name, None)) is not None
         ]

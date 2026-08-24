@@ -726,26 +726,39 @@ class TestFirmwareGatesAreSeriesAgnostic:
         "firmware",
         [
             "V1.88.0",
+            "V1.90",  # no patch digit -> minor 90.0
             "V1.90.0",
             "V1.90.1",
+            "V1.92.0",
+            "V1.92.1",
             "V2.88.0",
             "V2.92.0",
             "V2.92.1",
             "V3.90.0",
             "V3.90.1",
             "V3.92.1",
+            "not a version",  # unparsable -> Version("0") -> minor 0.0
         ],
     )
     def test_exactly_one_variant_of_each_pair_is_active(self, firmware):
-        """Paired descriptions must never both apply, nor both drop out.
+        """Exactly one variant of each gated pair may clear the version gate.
 
         Each pair shares one SensorKey, and number.py derives both
         `entity_id` and `unique_id` from that key alone - so the two
-        variants are the same entity, differing only in which register
-        backs it (DHW) or how wide its range is (cooling). Two active
-        variants would collide on that id; zero would make the entity
-        vanish. This is also why correcting these gates needs no entity
-        registry migration.
+        variants are one entity, differing only in which register backs it
+        (DHW) or how wide its range is (cooling). That is why correcting
+        these gates needs no entity registry migration, and it is why the
+        two gates of a pair have to stay complementary: overlapping ones
+        would have two descriptions claiming one id.
+
+        This asserts the version gate only. Whether an entity is actually
+        created also depends on `entity_active` and on the register being
+        present (number.py:66-69), so a passing case here does not by
+        itself prove exactly one entity is built.
+
+        Unlike the tests above, this one also passes before the firmware
+        minor fix - the absolute gates were complementary too. It guards
+        the shared-id property against future gate edits, not the bug.
         """
         coord = _coord_on_firmware(firmware)
         for key in (
