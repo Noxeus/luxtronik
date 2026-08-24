@@ -101,14 +101,41 @@ target stays at P0002. P0105 acts as a ceiling, not as the setpoint.
 | `number_entities_predefined.py` | minor 90.0 / 90.1 | [PR #357](https://github.com/BenPru/luxtronik/pull/357), May 2025 |
 | `water_heater.py` | minor 88.2 / 88.3 | commit `fecdf38`, Jan 2026 |
 
-Both platforms were set to 90.0/90.1 by PR #357. Commit `fecdf38` later did two
-things at once — converted `water_heater` from the absolute firmware fields to
-the series-agnostic `*_minor` ones (correct) *and* lowered its threshold to
-88.3 (a separate judgement, based on the single 2.88.3 report above). It touched
-`common.py`, `coordinator.py`, `model.py`, `sensor.py` and `water_heater.py`;
-`number_entities_predefined.py` was simply not in the commit.
+Both platforms were set to 90.0/90.1 by PR #357. Commit `fecdf38` then rebuilt
+the minor-version mechanism and used it on one platform only:
+
+- `firmware_version_minor` changed from `int` to `Version`. Before it was
+  `int(re.sub("[^0-9]", "", ver.split(".")[1]))` — a whole number, so `88.3`
+  could not be expressed as a threshold at all. The 88.3 value was in that sense
+  a by-product of making it expressible.
+- `max_firmware_version_minor` was added; only the `min_` side had existed, so
+  no minor-gated *pair* was possible before.
+- `model.py` moved `min_firmware_version_minor` off the `FirmwareVersionMinor`
+  enum onto `Version`.
+- `water_heater.py` then moved to 88.2/88.3.
+- `common.py` and `sensor.py` changes in the same commit are unrelated
+  (`LC.UNSET` guards for SmartGrid log warnings).
+
+`number_entities_predefined.py` was not in the commit and stayed on the absolute
+fields, which kept working — so nothing failed, it just silently diverged.
 
 **The divergence is an oversight, not a decision.**
+
+### What it looks like on an affected unit
+
+For a unit with minor in `[88.3, 90.0]` — the reporter's 2.88.3 among them — the
+two platforms now read different registers for the same physical setpoint:
+
+| entity | register |
+|---|---|
+| `water_heater` target temperature | P0105 |
+| `number.<prefix>_dhw_target_temperature` | P0002 |
+
+With the V1.88.3 dump's values (P0002 = 43.0, P0105 = 46.0) the water heater
+card shows 46 while the number entity shows 43, and writes go to different
+registers depending on which control the user touches. Both water heater
+descriptions share one `SensorKey`, so this was a register swap on the existing
+entity, not a new one.
 
 A later change converted the `number` gates to the `*_minor` form too, which is
 why both platforms now use minor comparisons while still disagreeing on the
