@@ -875,7 +875,7 @@ class TestSmartGridSensor:
         """Luxtronik 2.0 with SG2 on the RFV terminal, display state 3 (#669)."""
         from custom_components.luxtronik2.const import LuxSmartGridStatus
 
-        entity, _ = self._make_smart_grid(evu=1, evu2=0, rfv=-5.0)
+        entity, _ = self._make_smart_grid(evu=0, evu2=0, rfv=-5.0)
         entity._handle_coordinator_update()
         assert entity._attr_native_value == LuxSmartGridStatus.normal
 
@@ -883,9 +883,20 @@ class TestSmartGridSensor:
         """Same unit with SG2 open, display state 2 (#669)."""
         from custom_components.luxtronik2.const import LuxSmartGridStatus
 
-        entity, _ = self._make_smart_grid(evu=1, evu2=0, rfv=5.0)
+        entity, _ = self._make_smart_grid(evu=0, evu2=0, rfv=5.0)
         entity._handle_coordinator_update()
         assert entity._attr_native_value == LuxSmartGridStatus.reduced
+
+    def test_smart_grid_rfv_wiring_locked(self):
+        """Same unit with SG1 closed, display state 1 (#669).
+
+        The dump behind this row is the one the earlier fix never had.
+        """
+        from custom_components.luxtronik2.const import LuxSmartGridStatus
+
+        entity, _ = self._make_smart_grid(evu=1, evu2=0, rfv=5.0)
+        entity._handle_coordinator_update()
+        assert entity._attr_native_value == LuxSmartGridStatus.locked
 
     def test_smart_grid_room_station_still_uses_hzio(self):
         """A configured room station never doubles as SG2."""

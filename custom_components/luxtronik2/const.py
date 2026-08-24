@@ -599,6 +599,11 @@ class LuxCalculation(StrEnum):
     C0026_SOLAR_COLLECTOR_TEMPERATURE = "calculations.ID_WEB_Temperatur_TSK"
     C0027_SOLAR_BUFFER_TEMPERATURE = "calculations.ID_WEB_Temperatur_TSS"
     C0029_DEFROST_END_FLOW_OKAY = "calculations.ID_WEB_ASDin"
+    # Misnomer kept for compatibility: True means the EVU lock is *active*,
+    # not released. C0080 reads `evu` in exactly the dumps where this is True
+    # (all seven from the #669 unit), which is what refuted the short-lived
+    # EVU1 inversion in read_smart_grid_inputs. The user-facing string is
+    # correct already ("Locktime"); only this identifier reads backwards.
     C0031_EVU_UNLOCKED = "calculations.ID_WEB_EVUin"
     # C0032_HIGH_PRESSURE_OKAY: Final = "calculations.ID_WEB_HDin"  # True/False -> Hochdruck OK
     C0034_MOTOR_PROTECTION = "calculations.ID_WEB_MOTin"

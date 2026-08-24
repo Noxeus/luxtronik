@@ -196,11 +196,27 @@ def read_smart_grid_inputs(
     The rail test is a band rather than an exact match: the register may not be
     clamped at the rail on every unit, so reading slightly past it must still
     count. It is bounded above because a signed Celsius register can also
-    report something implausible, and treating that as SG2 would move a 2.1
-    unit onto this branch and invert its EVU1 as well.
+    report something implausible, and treating that as SG2 would read a 2.1
+    unit's SG2 off a temperature.
 
-    On 2.0 the EVU terminal carries SG1 itself, and there "released" means the
-    SG1 row of the table is 0, so EVU1 is inverted along with it.
+    Only SG2 moves. EVU1 is read off calc 31 unchanged on every generation,
+    and the four-state table it feeds is itself generation-independent - it is
+    verbatim the same in the Luxtronik 2.0 (83055300h p32), Luxtronik 2.1
+    (83055400g p33) and HMD2 (83055600d p29) manuals.
+
+    Releases 2026.08.17 through 2026.08.23 inverted EVU1 on this branch, fitted
+    to two dumps in #669 that had SG1 closed in both and so could not tell an
+    inverted input from a misread controller display. What settles it without
+    relying on anyone's reading of the display is C0080, the controller's own
+    operating state: across all seven dumps from that unit it reports `evu`
+    (EVU lock active) in exactly the dumps where calc 31 is True, and
+    `no request` in exactly those where it is False. So True means locked, the
+    EVU1=1 row of the table, and the register is passed through as-is.
+
+    Caveat for the next reader: no dump pins the EVU1=1 + EVU2=1 corner, and
+    the two dumps sitting there report C0080 `evu` rather than the increased
+    operation the table promises. That row is unverified in the field; it is
+    left as the manual specifies.
     """
     evu1 = _as_bool(get_sensor_data(coordinator, LC.C0031_EVU_UNLOCKED))
     rfv = get_sensor_data(coordinator, LC.C0023_ROOM_STATION_RFV)
@@ -219,8 +235,12 @@ def read_smart_grid_inputs(
     if rfv_value is not None and SMART_GRID_RFV_RAIL <= abs(rfv_value) <= (
         SMART_GRID_RFV_RAIL * 2
     ):
-        LOGGER.debug("SmartGrid SG2 read from the RFV terminal (%s)", rfv_value)
-        return not evu1, rfv_value < 0
+        LOGGER.debug(
+            "SmartGrid SG2 read from the RFV terminal (%s), EVU1 %s",
+            rfv_value,
+            evu1,
+        )
+        return evu1, rfv_value < 0
 
     return evu1, _as_bool(get_sensor_data(coordinator, LC.C0185_EVU2))
 

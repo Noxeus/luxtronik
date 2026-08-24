@@ -198,19 +198,33 @@ class TestReadSmartGridInputs:
         )
 
     def test_rfv_wiring_reads_evu2_from_the_rfv_sign(self):
-        """Luxtronik 2.0: SG2 sits on the room station terminal, EVU1 inverted.
+        """Luxtronik 2.0: SG2 sits on the room station terminal.
 
-        Both rows are taken from the two diagnostics dumps in #669, together
-        with the state the controller display showed for each.
+        Every row is one of the three-point SG sweep posted on 2026-08-20 in
+        #669, together with the state the controller display showed for it.
+        That set is the one that varies SG1, so it is the one that pins both
+        inputs down.
         """
-        # SG2 on -> display state 3 -> EVU1=0, EVU2=1
-        assert read_smart_grid_inputs(_sg_data(evu_in=True, rfv=-5.0)) == (False, True)
-        # SG2 off -> display state 2 -> EVU1=0, EVU2=0
-        assert read_smart_grid_inputs(_sg_data(evu_in=True, rfv=5.0)) == (False, False)
+        # SG2 closed -> display state 3 -> EVU1=0, EVU2=1
+        assert read_smart_grid_inputs(_sg_data(evu_in=False, rfv=-5.0)) == (False, True)
+        # SG2 open -> display state 2 -> EVU1=0, EVU2=0
+        assert read_smart_grid_inputs(_sg_data(evu_in=False, rfv=5.0)) == (False, False)
+        # SG1 closed -> display state 1 -> EVU1=1, EVU2=0
+        assert read_smart_grid_inputs(_sg_data(evu_in=True, rfv=5.0)) == (True, False)
 
-    def test_rfv_wiring_inverts_evu1(self):
-        """On 2.0 the EVU terminal is SG1 itself, so released == EVU1 off."""
-        assert read_smart_grid_inputs(_sg_data(evu_in=False, rfv=-5.0)) == (True, True)
+    def test_rfv_wiring_passes_evu1_through(self):
+        """EVU1 comes off calc 31 unchanged, exactly as on the other wirings.
+
+        Releases 2026.08.17-2026.08.23 inverted it here. That is refuted by
+        C0080, the controller's own operating state, which reads `evu` in
+        exactly the dumps where calc 31 is True - so True is the EVU1=1 row.
+
+        This asserts the pass-through only. The input pair here is EVU1=1 +
+        EVU2=1, whose mapping to `increased` no dump confirms; see the caveat
+        in read_smart_grid_inputs.
+        """
+        assert read_smart_grid_inputs(_sg_data(evu_in=True, rfv=-5.0)) == (True, True)
+        assert read_smart_grid_inputs(_sg_data(evu_in=False, rfv=-5.0)) == (False, True)
 
     def test_room_station_configured_keeps_hzio(self):
         """A real room station owns the terminal, so it can never be SG2.
@@ -246,16 +260,20 @@ class TestReadSmartGridInputs:
         ) == (True, True)
 
     def test_smart_grid_mode_value_is_enabled(self):
-        """P1030 holds a mode, not a flag - the #669 unit reports 3, not 1."""
+        """P1030 holds a mode, not a flag - the #669 unit reports 3, not 1.
+
+        The tell that the mode counted as enabled is EVU2 coming off the RFV
+        sign rather than the HZIO register, which reads 0 here.
+        """
         assert read_smart_grid_inputs(
             _sg_data(evu_in=True, rfv=-5.0, smart_grid=3)
-        ) == (False, True)
+        ) == (True, True)
 
     def test_implausible_rfv_reading_keeps_hzio(self):
         """A signed Celsius register can report garbage; only the rails count.
 
         Without a ceiling such a reading would move a 2.1 unit onto the 2.0
-        branch, which also inverts its EVU1.
+        branch and read its SG2 off a temperature.
         """
         for rfv in (3276.7, -100.0):
             assert read_smart_grid_inputs(
