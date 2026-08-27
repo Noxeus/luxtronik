@@ -266,7 +266,7 @@ class TestStatusSensorUpdate:
 
 
 class TestSmartGridStatus:
-    def _make_smartgrid_sensor(self, evu=0, evu2=0, smartgrid_enabled=1):
+    def _make_smartgrid_sensor(self, evu=0, evu2=0, smartgrid_enabled="plus_minus"):
         data = make_coordinator_data(
             parameters={
                 "ID_Ba_Hz_akt": "Automatic",
@@ -293,7 +293,7 @@ class TestSmartGridStatus:
         return entity
 
     def test_smartgrid_disabled(self):
-        entity = self._make_smartgrid_sensor(smartgrid_enabled=0)
+        entity = self._make_smartgrid_sensor(smartgrid_enabled="off")
         entity._handle_coordinator_update()
         assert entity.available is False
         assert entity._attr_native_value is None
@@ -337,6 +337,30 @@ class TestSmartGridStatus:
         entity._handle_coordinator_update()
         assert entity._attr_native_value == LuxSmartGridStatus.increased
 
+    def test_sg_1_0_both_contacts_closed_is_a_start_command(self):
+        """Mode 2's fourth row is Anlaufbefehl, not increased operation."""
+        entity = self._make_smartgrid_sensor(evu=1, evu2=1, smartgrid_enabled="sg_1_0")
+        entity._handle_coordinator_update()
+        assert entity._attr_native_value == LuxSmartGridStatus.start_command
+
+    def test_sg_1_1_both_contacts_closed_is_power_limitation(self):
+        """The #669 unit: mode 3 limits power where the "+/-" table promises
+        increased operation, which is why the pump appeared to lock up."""
+        entity = self._make_smartgrid_sensor(evu=1, evu2=1, smartgrid_enabled="sg_1_1")
+        entity._handle_coordinator_update()
+        assert entity._attr_native_value == LuxSmartGridStatus.power_limitation
+
+    def test_sg_1_1_single_contact_is_power_limitation_not_evu_lock(self):
+        entity = self._make_smartgrid_sensor(evu=1, evu2=0, smartgrid_enabled="sg_1_1")
+        entity._handle_coordinator_update()
+        assert entity._attr_native_value == LuxSmartGridStatus.power_limitation
+
+    def test_sg_1_0_open_contacts_are_normal_operation(self):
+        """Mode 2 has no reduced state - both open is plain normal operation."""
+        entity = self._make_smartgrid_sensor(evu=0, evu2=0, smartgrid_enabled="sg_1_0")
+        entity._handle_coordinator_update()
+        assert entity._attr_native_value == LuxSmartGridStatus.normal
+
     def test_smartgrid_icon_by_state(self):
         """SmartGrid sensor no longer sets _attr_icon — icons come from icons.json."""
         desc = LuxtronikSensorDescription(
@@ -348,7 +372,7 @@ class TestSmartGridStatus:
             parameters={
                 "ID_Ba_Hz_akt": "Automatic",
                 "ID_Ba_Bw_akt": "Automatic",
-                "ID_Einst_SmartGrid": 1,
+                "ID_Einst_SmartGrid": "plus_minus",
             },
             calculations={
                 "ID_WEB_WP_BZ_akt": "heating",
@@ -508,7 +532,7 @@ class TestSensorSmartGridIconFallback:
     def test_icon_not_set_when_no_icon_by_state(self):
         """SmartGrid sensor delegates icon resolution to icons.json."""
         data = make_coordinator_data(
-            parameters={"ID_Einst_SmartGrid": 1},
+            parameters={"ID_Einst_SmartGrid": "plus_minus"},
             calculations={
                 "ID_WEB_EVU": 0,
                 "ID_WEB_EVU2": 1,

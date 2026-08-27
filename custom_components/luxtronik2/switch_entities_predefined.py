@@ -27,11 +27,6 @@ SWITCHES: list[LuxtronikSwitchDescription] = [
         entity_registry_enabled_default=False,
     ),
     LuxtronikSwitchDescription(
-        key=SensorKey.SMART_GRID_SWITCH,
-        luxtronik_key=LP.P1030_SMART_GRID_SWITCH,
-        entity_category=EntityCategory.CONFIG,
-    ),
-    LuxtronikSwitchDescription(
         luxtronik_key=LP.P1033_PUMP_HEAT_CONTROL,
         key=SensorKey.PUMP_HEAT_CONTROL,
         entity_category=EntityCategory.CONFIG,

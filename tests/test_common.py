@@ -14,11 +14,14 @@ from custom_components.luxtronik2.common import (
     key_exists,
     normalize_sensor_value,
     read_smart_grid_inputs,
+    smart_grid_mode,
+    smart_grid_status,
     state_as_number_or_none,
 )
 from custom_components.luxtronik2.const import (
     LuxCalculation as LC,
     LuxOperationMode,
+    LuxSmartGridStatus,
     LuxStatus1Option,
     LuxStatus3Option,
 )
@@ -161,7 +164,7 @@ class TestRegisterPresence:
 # ===========================================================================
 
 
-def _sg_data(evu_in=True, hzio_evu2=0, rfv=0.0, rfv_type=0, smart_grid=1):
+def _sg_data(evu_in=True, hzio_evu2=0, rfv=0.0, rfv_type=0, smart_grid="plus_minus"):
     return make_coordinator_data(
         calculations={
             "ID_WEB_EVUin": evu_in,
@@ -676,3 +679,104 @@ class TestAsyncGetMacAddress:
         hass.async_add_executor_job = AsyncMock(return_value="")
         result = await async_get_mac_address(hass, "192.168.1.100")
         assert result is None
+
+
+# ===========================================================================
+# smart_grid_mode / smart_grid_status
+# ===========================================================================
+
+
+class TestSmartGridMode:
+    """P1030 holds a 4-option mode, not a flag (Lux 2.0 manual 83055300k p29).
+
+    The SmartGridMode datatype decodes the register to the menu entry's name,
+    so that is what the helper normally sees; raw codes are still accepted for
+    data that never went through the datatype.
+    """
+
+    def test_off_reads_as_off(self):
+        assert smart_grid_mode(_sg_data(smart_grid="off")) == "off"
+
+    def test_plus_minus(self):
+        assert smart_grid_mode(_sg_data(smart_grid="plus_minus")) == "plus_minus"
+
+    def test_sg_1_0(self):
+        assert smart_grid_mode(_sg_data(smart_grid="sg_1_0")) == "sg_1_0"
+
+    def test_sg_1_1(self):
+        """The Luxtronik 2.0 unit in #669 runs this one."""
+        assert smart_grid_mode(_sg_data(smart_grid="sg_1_1")) == "sg_1_1"
+
+    def test_an_undecoded_raw_code_is_decoded_here(self):
+        assert smart_grid_mode(_sg_data(smart_grid=3)) == "sg_1_1"
+        assert smart_grid_mode(_sg_data(smart_grid=0)) == "off"
+
+    def test_boolean_true_reads_as_plus_minus(self):
+        """Firmware reporting the register as a flag means the classic table."""
+        assert smart_grid_mode(_sg_data(smart_grid=True)) == "plus_minus"
+
+    def test_an_undocumented_mode_falls_back_to_plus_minus(self):
+        """The datatype passes an unknown code through rather than nulling it,
+        so a fifth mode still leaves SmartGrid switched on."""
+        assert smart_grid_mode(_sg_data(smart_grid=4)) == "plus_minus"
+        assert smart_grid_mode(_sg_data(smart_grid="Ja")) == "plus_minus"
+
+    def test_missing_register_is_off(self):
+        data = make_coordinator_data(calculations={"ID_WEB_EVUin": True})
+        assert smart_grid_mode(data) == "off"
+
+
+class TestSmartGridStatus:
+    """Each mode has its own state table (83055300k p32-33)."""
+
+    @pytest.mark.parametrize(
+        ("evu1", "evu2", "expected"),
+        [
+            (True, False, LuxSmartGridStatus.locked),
+            (False, False, LuxSmartGridStatus.reduced),
+            (False, True, LuxSmartGridStatus.normal),
+            (True, True, LuxSmartGridStatus.increased),
+        ],
+    )
+    def test_plus_minus_table(self, evu1, evu2, expected):
+        """Mode 1 is what the integration shipped before, unchanged."""
+        assert smart_grid_status("plus_minus", evu1, evu2) == expected
+
+    @pytest.mark.parametrize(
+        ("evu1", "evu2", "expected"),
+        [
+            (True, False, LuxSmartGridStatus.locked),
+            (False, False, LuxSmartGridStatus.normal),
+            (False, True, LuxSmartGridStatus.increased),
+            (True, True, LuxSmartGridStatus.start_command),
+        ],
+    )
+    def test_sg_1_0_table(self, evu1, evu2, expected):
+        assert smart_grid_status("sg_1_0", evu1, evu2) == expected
+
+    @pytest.mark.parametrize(
+        ("evu1", "evu2", "expected"),
+        [
+            (True, False, LuxSmartGridStatus.power_limitation),
+            (False, False, LuxSmartGridStatus.normal),
+            (False, True, LuxSmartGridStatus.increased),
+            (True, True, LuxSmartGridStatus.power_limitation),
+        ],
+    )
+    def test_sg_1_1_table(self, evu1, evu2, expected):
+        """Both contacts closed is power limitation, not increased operation -
+        which is why the #669 unit went straight into the EVU lockout there."""
+        assert smart_grid_status("sg_1_1", evu1, evu2) == expected
+
+    def test_unknown_mode_uses_the_plus_minus_table(self):
+        assert smart_grid_status("sg_2_0", True, True) == LuxSmartGridStatus.increased
+
+
+def test_every_selectable_mode_has_a_state_table():
+    """The mode numbers live in two modules; a drift would leave a mode the
+    user can select but the status sensor silently reads as "+/-"."""
+    from custom_components.luxtronik2.common import SMART_GRID_STATE_TABLES
+    from custom_components.luxtronik2.const import SMART_GRID_MODE_CODES
+
+    selectable = {v for v in SMART_GRID_MODE_CODES.values() if v != "off"}
+    assert selectable == set(SMART_GRID_STATE_TABLES)

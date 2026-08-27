@@ -21,6 +21,8 @@
           "reduced_operation": "mdi:arrow-down-circle",
           "normal_operation": "mdi:check-circle",
           "increased_operation": "mdi:arrow-up-circle",
+          "power_limitation": "mdi:speedometer-slow",
+          "start_command": "mdi:play-circle",
           "unknown": "mdi:help-circle"
         }
       },
@@ -141,7 +143,6 @@
     "switch": {
       "remote_maintenance": { "default": "mdi:remote-desktop" },
       "efficiency_pump": { "default": "mdi:leaf-circle" },
-      "smartgrid": { "default": "mdi:alpha-a-circle" },
       "pump_heat_control": { "default": "mdi:pump" },
       "electrical_power_limitation_switch": { "default": "mdi:download-lock" },
       "thermal_power_limitation_switch": { "default": "mdi:download-lock" },
@@ -257,6 +258,7 @@
     },
     "select": {
       "thermal_desinfection_day": { "default": "mdi:calendar" },
+      "smart_grid_mode": { "default": "mdi:alpha-a-circle" },
       "dhw_mode": {
         "default": "mdi:water-pump",
         "state": {

@@ -6,6 +6,7 @@ from homeassistant.const import EntityCategory
 
 from .const import (
     DAY_SELECTOR_OPTIONS,
+    SMART_GRID_MODE_CODES,
     DeviceKey,
     LuxDaySelectorParameter,
     LuxHeatingControlModeTypes,
@@ -59,6 +60,8 @@ TIMER_PROGRAM_RAW_OPTIONS: dict[str, str] = {
     "daily": "days",
 }
 timer_program_options: list[str] = list(TIMER_PROGRAM_RAW_OPTIONS)
+
+smart_grid_mode_options: list[str] = list(SMART_GRID_MODE_CODES.values())
 
 
 # ---- Descriptions directly in SELECT_ENTITIES ---------------------
@@ -145,6 +148,13 @@ SELECT_ENTITIES: list[LuxtronikSelectEntityDescription] = [
         # ventilation mode, and the ventilation device itself is already
         # gated on has_ventilation.
         options=mode_mk_options,
+    ),
+    LuxtronikSelectEntityDescription(
+        key=SK.SMART_GRID_MODE,
+        device_key=DeviceKey.heatpump,
+        luxtronik_key=LuxParameter.P1030_SMART_GRID_SWITCH,
+        entity_category=EntityCategory.CONFIG,
+        options=smart_grid_mode_options,
     ),
     LuxtronikSelectEntityDescription(
         key=SK.PV_MODE_SELECTOR,

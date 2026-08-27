@@ -211,10 +211,16 @@ class LuxPoolPVMode(StrEnum):
 class LuxSmartGridStatus(StrEnum):
     """SmartGrid status based on EVU and EVU2 inputs."""
 
-    locked = "evu_locked"  # EVU=1, EVU2=0 - Status 1 - EVU lock
-    reduced = "reduced_operation"  # EVU=0, EVU2=0 - Status 2 - Reduced operation
-    normal = "normal_operation"  # EVU=0, EVU2=1 - Status 3 - Normal operation
-    increased = "increased_operation"  # EVU=1, EVU2=1 - Status 4 - Increased operation
+    locked = "evu_locked"  # EVU-Sperre
+    reduced = "reduced_operation"  # abgesenkte Betriebsweise
+    normal = "normal_operation"  # Normalbetrieb
+    increased = "increased_operation"  # erhoehte Betriebsweise
+    power_limitation = "power_limitation"  # Leistungsbegrenzung aktiv - SG 1.1 only
+    start_command = "start_command"  # Anlaufbefehl - SG 1.0 only
+
+    # Which input pair produces which state depends on the SmartGrid mode
+    # selected at the controller (P1030), so the numbering above is
+    # deliberately not part of these names - see SMART_GRID_STATE_TABLES.
 
 
 class LuxStatus1Option(StrEnum):
@@ -377,6 +383,25 @@ DAY_NAME_TO_PARAM: Final[dict[str, LuxDaySelectorParameter]] = {
     "saturday": LuxDaySelectorParameter.SATURDAY,
     "sunday": LuxDaySelectorParameter.SUNDAY,
     "continuous": LuxDaySelectorParameter.CONTINUOUS,
+}
+
+# The SmartGrid variant selected at Service > Einstellungen > System
+# Einstellung > Smart Grid (P1030), mapping the controller's menu entries onto
+# the raw values it stores: 0 Nein, 1 "+/-", 2 "SG 1.0", 3 "SG 1.1"
+# (Luxtronik 2.0 part 2 manual, revision k, 83055300kDE p29). Each on-mode has
+# its own state table, so this is a mode and never a flag.
+# The SmartGrid variant selected at Service > Einstellungen > System
+# Einstellung > Smart Grid (P1030), mapping the raw value the controller
+# stores onto the menu entry it shows: 0 Nein, 1 "+/-", 2 "SG 1.0", 3 "SG 1.1"
+# (Luxtronik 2.0 part 2 manual, revision k, 83055300kDE p29). Each on-mode has
+# its own state table, so this is a mode and never a flag. lux_overrides turns
+# these into the SmartGridMode datatype, which is what makes the register
+# readable and writable as a name rather than a bare int.
+SMART_GRID_MODE_CODES: Final[dict[int, str]] = {
+    0: "off",
+    1: "plus_minus",
+    2: "sg_1_0",
+    3: "sg_1_1",
 }
 
 DAY_SELECTOR_OPTIONS: Final[list[str]] = [
@@ -974,7 +999,7 @@ class SensorKey(StrEnum):
     COOLING_TARGET_TEMPERATURE_MK2 = "cooling_target_temperature_mk2"
     COOLING_TARGET_TEMPERATURE_MK3 = "cooling_target_temperature_mk3"
     COOLING_MIN_FLOW_OUT_TEMPERATURE = "cooling_min_flow_out_temperature"
-    SMART_GRID_SWITCH = "smartgrid"
+    SMART_GRID_MODE = "smart_grid_mode"
     SMART_GRID_HEATING_REDUCTION = "smart_grid_heating_reduction"
     SMART_GRID_HEATING_INCREASE = "smart_grid_heating_increase"
     SMART_GRID_DHW_INCREASE = "smart_grid_dhw_increase"

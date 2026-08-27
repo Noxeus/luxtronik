@@ -591,3 +591,55 @@ class TestTimerScheduleDatatypeCoverage:
         assert isinstance(parameters[222], TimerProgram)
         for number in (223, 282):
             assert isinstance(parameters[number], TimeOfDay), number
+
+
+class TestSmartGridMode:
+    """P1030 is a four-option mode selector, so it needs a real datatype.
+
+    Left as Unknown it has no to_heatpump conversion, and Luxtronik.write
+    discards every queued value that is not an int - so the select wrote
+    nothing at all and then failed its write confirmation.
+    """
+
+    def _datatype(self):
+        lux_overrides.update_Luxtronik_HeatpumpCodes()
+        lux_overrides.update_Luxtronik_Parameters()
+        return Parameters.parameters[1030]
+
+    def test_registered_on_parameter_1030(self):
+        assert type(self._datatype()).__name__ == "SmartGridMode"
+
+    def test_writes_an_int(self):
+        raw = self._datatype().to_heatpump("sg_1_1")
+        assert raw == 3
+        assert isinstance(raw, int)
+
+    def test_reads_the_menu_entry(self):
+        assert self._datatype().from_heatpump(3) == "sg_1_1"
+        assert self._datatype().from_heatpump(0) == "off"
+
+    def test_an_undocumented_code_passes_through_instead_of_reading_none(self):
+        """None already means "the controller never sent this register", and
+        for parameter 1030 nothing can tell those two apart afterwards. A
+        firmware with a fifth mode must not read as an absent register."""
+        assert self._datatype().from_heatpump(4) == 4
+
+
+class TestHeatingCircuitControlMode:
+    """P0103 has the same defect as P1030 had: an Unknown parameter driven by
+    a select, so selecting a mode queued a string and wrote nothing."""
+
+    def _datatype(self):
+        lux_overrides.update_Luxtronik_HeatpumpCodes()
+        lux_overrides.update_Luxtronik_Parameters()
+        return Parameters.parameters[103]
+
+    def test_writes_an_int(self):
+        raw = self._datatype().to_heatpump("1")
+        assert raw == 1
+        assert isinstance(raw, int)
+
+    def test_reads_back_the_option_name_unchanged(self):
+        """The option names stay "0"/"1"/"2" - renaming them would break the
+        translations and any automation comparing the state."""
+        assert self._datatype().from_heatpump(1) == "1"

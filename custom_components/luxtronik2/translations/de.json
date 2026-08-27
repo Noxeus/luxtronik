@@ -95,9 +95,6 @@
             },
             "pump_vent_active": {
                 "name": "Entlüften aktiv"
-            },
-            "smartgrid": {
-                "name": "Smart Grid"
             }
         },
         "update": {
@@ -295,7 +292,9 @@
                     "evu_locked": "EVU-Sperre",
                     "reduced_operation": "abgesenkte Betriebsweise",
                     "normal_operation": "Normalbetrieb",
-                    "increased_operation": "erhöhte Betriebsweise"
+                    "increased_operation": "erhöhte Betriebsweise",
+                    "power_limitation": "Leistungsbegrenzung aktiv",
+                    "start_command": "Anlaufbefehl"
                 }
             },
             "error_reason": {
@@ -1243,6 +1242,15 @@
                     "automatic": "Automatisch",
                     "party": "Party",
                     "holidays": "Ferien"
+                }
+            },
+            "smart_grid_mode": {
+                "name": "Smart Grid Modus",
+                "state": {
+                    "off": "Nein",
+                    "plus_minus": "+/-",
+                    "sg_1_0": "SG 1.0",
+                    "sg_1_1": "SG 1.1"
                 }
             }
         },

@@ -17,9 +17,11 @@ from .const import (
     CONF_VISIBILITIES,
     LOGGER,
     PARSED_COUNT_ATTR,
+    SMART_GRID_MODE_CODES,
     LuxCalculation as LC,
     LuxOperationMode,
     LuxParameter as LP,
+    LuxSmartGridStatus,
     LuxStatus1Option,
     LuxStatus3Option,
     LuxVisibility as LV,
@@ -161,15 +163,98 @@ def _as_bool(value: Any) -> bool:
     return value in [True, 1, "1", "true", "True"]
 
 
+SMART_GRID_OFF = "off"
+SMART_GRID_PLUS_MINUS = "plus_minus"
+SMART_GRID_SG_1_0 = "sg_1_0"
+SMART_GRID_SG_1_1 = "sg_1_1"
+
+# The controller's own state tables, keyed by the mode selected at
+# Service > Einstellungen > System Einstellung > Smart Grid (P1030) and then by
+# the (EVU1, EVU2) contact pair. Transcribed from the Luxtronik 2.0 part 2
+# manual, revision k (83055300kDE p32-33), which is the first revision to
+# document the modes at all - up to revision h the setting reads "Nein / Ja"
+# and only the "+/-" table is printed.
+#
+# The differences are not cosmetic. Under "SG 1.1" both contacts closed means
+# power limitation, which on a unit without a speed-controlled compressor the
+# manual warns can shut the machine down - exactly what the #669 unit reported
+# where the "+/-" table promises increased operation.
+SMART_GRID_STATE_TABLES: dict[str, dict[tuple[bool, bool], LuxSmartGridStatus]] = {
+    SMART_GRID_PLUS_MINUS: {
+        (True, False): LuxSmartGridStatus.locked,
+        (False, False): LuxSmartGridStatus.reduced,
+        (False, True): LuxSmartGridStatus.normal,
+        (True, True): LuxSmartGridStatus.increased,
+    },
+    SMART_GRID_SG_1_0: {
+        (True, False): LuxSmartGridStatus.locked,
+        (False, False): LuxSmartGridStatus.normal,
+        (False, True): LuxSmartGridStatus.increased,
+        (True, True): LuxSmartGridStatus.start_command,
+    },
+    SMART_GRID_SG_1_1: {
+        (True, False): LuxSmartGridStatus.power_limitation,
+        (False, False): LuxSmartGridStatus.normal,
+        (False, True): LuxSmartGridStatus.increased,
+        (True, True): LuxSmartGridStatus.power_limitation,
+    },
+}
+
+# Values a controller can report for "off" once the SmartGridMode datatype has
+# decoded the register, plus the undecoded forms a unit can still produce if
+# the register never reached that datatype.
+_SMART_GRID_OFF_VALUES = [SMART_GRID_OFF, 0, "0", False, "false", "False"]
+
+
+def smart_grid_mode(coordinator: LuxtronikCoordinatorData) -> str:
+    """Which SmartGrid variant is selected at the controller?
+
+    P1030 is a four-option mode - "off", "plus_minus", "sg_1_0", "sg_1_1" -
+    and each of the three on-modes has its own state table. The SmartGridMode
+    datatype decodes it, so this reads names rather than raw values.
+
+    Two fallbacks matter. A register the controller never returned reads None
+    and means off, as it always has. A value that is neither off nor a mode we
+    know - an undocumented fifth mode passed through by the datatype, or a
+    firmware reporting the register as a plain flag - means on, and gets the
+    "+/-" table: that is what this integration shipped before the modes were
+    known, so an unrecognised controller keeps its previous behaviour rather
+    than losing the sensor. The select entity deliberately does not guess the
+    same way - an unknown mode there is left unselected and warned about once,
+    because offering a guess invites the user to write it back.
+    """
+    value = get_sensor_data(coordinator, LP.P1030_SMART_GRID_SWITCH)
+    if value in SMART_GRID_MODE_CODES:
+        # Still a raw code: the datatype was bypassed (a diagnostics dump
+        # replayed straight into the coordinator, say). Decode it here so the
+        # helper does not depend on where its input came from.
+        value = SMART_GRID_MODE_CODES[value]
+    if value is None or value in _SMART_GRID_OFF_VALUES:
+        return SMART_GRID_OFF
+    if value in SMART_GRID_STATE_TABLES:
+        return str(value)
+    return SMART_GRID_PLUS_MINUS
+
+
+def smart_grid_status(mode: str, evu1: bool, evu2: bool) -> LuxSmartGridStatus:
+    """Map the EVU1/EVU2 contact pair onto the state table of `mode`.
+
+    `smart_grid_mode` already narrows its result to a known mode, so the
+    fallback here only covers direct callers passing something else.
+    """
+    table = SMART_GRID_STATE_TABLES.get(
+        mode, SMART_GRID_STATE_TABLES[SMART_GRID_PLUS_MINUS]
+    )
+    return table[(evu1, evu2)]
+
+
 def smart_grid_enabled(coordinator: LuxtronikCoordinatorData) -> bool:
     """Is SmartGrid switched on at the controller?
 
-    P1030 holds a mode rather than a flag: 0 is off, but the variant selected
-    when it is on is not always 1 - the Luxtronik 2.0 unit in #669 reports 3.
-    So this must not be coerced through a boolean-ish comparison.
+    P1030 holds a mode rather than a flag, so this must not be coerced through
+    a boolean-ish comparison - see `smart_grid_mode`.
     """
-    value = get_sensor_data(coordinator, LP.P1030_SMART_GRID_SWITCH)
-    return bool(value) and value not in [False, 0, "0", "false", "False"]
+    return smart_grid_mode(coordinator) != SMART_GRID_OFF
 
 
 def read_smart_grid_inputs(
@@ -199,10 +284,9 @@ def read_smart_grid_inputs(
     report something implausible, and treating that as SG2 would read a 2.1
     unit's SG2 off a temperature.
 
-    Only SG2 moves. EVU1 is read off calc 31 unchanged on every generation,
-    and the four-state table it feeds is itself generation-independent - it is
-    verbatim the same in the Luxtronik 2.0 (83055300h p32), Luxtronik 2.1
-    (83055400g p33) and HMD2 (83055600d p29) manuals.
+    Only SG2 moves. EVU1 is read off calc 31 unchanged on every generation.
+    The table these inputs feed is generation-independent but *mode*-dependent:
+    see SMART_GRID_STATE_TABLES.
 
     Releases 2026.08.17 through 2026.08.23 inverted EVU1 on this branch, fitted
     to two dumps in #669 that had SG1 closed in both and so could not tell an
@@ -213,10 +297,11 @@ def read_smart_grid_inputs(
     `no request` in exactly those where it is False. So True means locked, the
     EVU1=1 row of the table, and the register is passed through as-is.
 
-    Caveat for the next reader: no dump pins the EVU1=1 + EVU2=1 corner, and
-    the two dumps sitting there report C0080 `evu` rather than the increased
-    operation the table promises. That row is unverified in the field; it is
-    left as the manual specifies.
+    The EVU1=1 + EVU2=1 corner used to look wrong here: the two dumps sitting
+    there report C0080 `evu` rather than the increased operation the "+/-"
+    table promises. That is the mode, not the inputs - the unit runs "SG 1.1",
+    where that pair means power limitation, and the user confirmed it locks
+    up there and stops doing so under "SG 1.0".
     """
     evu1 = _as_bool(get_sensor_data(coordinator, LC.C0031_EVU_UNLOCKED))
     rfv = get_sensor_data(coordinator, LC.C0023_ROOM_STATION_RFV)

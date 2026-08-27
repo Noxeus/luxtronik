@@ -95,9 +95,6 @@
             },
             "pump_vent_active": {
                 "name": "Ontluchting actief"
-            },
-            "smartgrid": {
-                "name": "Smart Grid"
             }
         },
         "update": {
@@ -295,7 +292,9 @@
                     "evu_locked": "EVU geblokkeerd",
                     "reduced_operation": "Verminderde werking",
                     "normal_operation": "Normale werking",
-                    "increased_operation": "Verhoogde werking"
+                    "increased_operation": "Verhoogde werking",
+                    "power_limitation": "Vermogensbegrenzing actief",
+                    "start_command": "Startcommando"
                 }
             },
             "error_reason": {
@@ -1243,6 +1242,15 @@
                     "automatic": "Automatisch",
                     "party": "Party",
                     "holidays": "Vakantie"
+                }
+            },
+            "smart_grid_mode": {
+                "name": "Smart Grid-modus",
+                "state": {
+                    "off": "Nee",
+                    "plus_minus": "+/-",
+                    "sg_1_0": "SG 1.0",
+                    "sg_1_1": "SG 1.1"
                 }
             }
         },

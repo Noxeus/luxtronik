@@ -95,9 +95,6 @@
             },
             "pump_vent_active": {
                 "name": "Aktywne odpowietrzanie"
-            },
-            "smartgrid": {
-                "name": "Smart Grid"
             }
         },
         "update": {
@@ -295,7 +292,9 @@
                     "evu_locked": "Zablokowane EVU",
                     "reduced_operation": "Praca obniżona",
                     "normal_operation": "Praca normalna",
-                    "increased_operation": "Praca zwiększona"
+                    "increased_operation": "Praca zwiększona",
+                    "power_limitation": "Ograniczenie mocy aktywne",
+                    "start_command": "Polecenie startu"
                 }
             },
             "error_reason": {
@@ -1243,6 +1242,15 @@
                     "automatic": "Automatyczny",
                     "party": "Tryb imprezowy",
                     "holidays": "Tryb wakacyjny"
+                }
+            },
+            "smart_grid_mode": {
+                "name": "Tryb Smart Grid",
+                "state": {
+                    "off": "Nie",
+                    "plus_minus": "+/-",
+                    "sg_1_0": "SG 1.0",
+                    "sg_1_1": "SG 1.1"
                 }
             }
         },

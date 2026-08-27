@@ -1370,3 +1370,43 @@ class TestWriteParameterServiceTargetSelection:
             "ID_Einst_BWS_akt", 42
         )
         entry_1.runtime_data.async_write.assert_not_awaited()
+
+
+# ===========================================================================
+# _async_remove_legacy_smart_grid_switch
+# ===========================================================================
+
+
+class TestRemoveLegacySmartGridSwitch:
+    """P1030 became a select, so its switch entity has to go (#500/#669).
+
+    Left behind, HA restores it as an unavailable entity with no name, and
+    any automation still calling switch.turn_on on it fails silently.
+    """
+
+    @pytest.mark.asyncio
+    async def test_removes_the_switch_entity(self):
+        from custom_components.luxtronik2 import _async_remove_legacy_smart_grid_switch
+
+        hass = MagicMock()
+        entry = _mock_entry()
+        ent_reg = MagicMock()
+        ent_reg.async_get_entity_id.return_value = "switch.luxtronik2_smartgrid"
+        with patch("custom_components.luxtronik2.async_get", return_value=ent_reg):
+            await _async_remove_legacy_smart_grid_switch(hass, entry)
+        ent_reg.async_get_entity_id.assert_called_once_with(
+            "switch", DOMAIN, "switch.luxtronik2_smartgrid"
+        )
+        ent_reg.async_remove.assert_called_once_with("switch.luxtronik2_smartgrid")
+
+    @pytest.mark.asyncio
+    async def test_does_nothing_when_the_switch_was_never_registered(self):
+        from custom_components.luxtronik2 import _async_remove_legacy_smart_grid_switch
+
+        hass = MagicMock()
+        entry = _mock_entry()
+        ent_reg = MagicMock()
+        ent_reg.async_get_entity_id.return_value = None
+        with patch("custom_components.luxtronik2.async_get", return_value=ent_reg):
+            await _async_remove_legacy_smart_grid_switch(hass, entry)
+        ent_reg.async_remove.assert_not_called()
