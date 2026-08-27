@@ -1149,9 +1149,9 @@
             "heating_control_circuit_mode": {
                 "name": "Heizkreis Kontroll Modus",
                 "state": {
-                    "0": "Laut Heizkurve steuern - Aussentemperatur-abhaengige Regelung",
-                    "1": "Manuell gesetzte Temperatur",
-                    "2": "AIn"
+                    "heating_curve_control": "Laut Heizkurve steuern - Aussentemperatur-abhaengige Regelung",
+                    "fixed_temperature": "Manuell gesetzte Temperatur",
+                    "analog_in": "AIn"
                 }
             },
             "timer_dhw_program": {

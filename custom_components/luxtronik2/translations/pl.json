@@ -1149,9 +1149,9 @@
             "heating_control_circuit_mode": {
                 "name": "Tryb sterowania obiegiem grzewczym",
                 "state": {
-                    "0": "Sterowanie krzywą grzewczą - według temperatury zewnętrznej",
-                    "1": "Ręcznie ustawiona temperatura",
-                    "2": "Wejście analogowe"
+                    "heating_curve_control": "Sterowanie krzywą grzewczą - według temperatury zewnętrznej",
+                    "fixed_temperature": "Ręcznie ustawiona temperatura",
+                    "analog_in": "Wejście analogowe"
                 }
             },
             "timer_dhw_program": {

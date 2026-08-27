@@ -24,10 +24,10 @@ from .const import (
     CONF_CALCULATIONS,
     CONF_PARAMETERS,
     CONF_VISIBILITIES,
+    HEATING_CONTROL_MODE_CODES,
     LOGGER,
     PARSED_COUNT_ATTR,
     SMART_GRID_MODE_CODES,
-    LuxHeatingControlModeTypes,
 )
 
 
@@ -165,15 +165,13 @@ class SmartGridMode(KnownCodeSelection):
 class HeatingCircuitControlMode(KnownCodeSelection):
     """HeatingCircuitControlMode datatype for P0103.
 
-    The option names are the raw values as strings ("0"/"1"/"2"); they are
-    what the translations and any existing automation already use, so they
-    are deliberately not renamed here. Without this datatype the parameter is
-    Unknown, and the select's string option is discarded unwritten.
+    Without this datatype the parameter is Unknown, and the select's string
+    option is queued as-is and discarded unwritten.
     """
 
     measurement_type = "selection"
 
-    codes = {int(m.value): m.value for m in LuxHeatingControlModeTypes}
+    codes = dict(HEATING_CONTROL_MODE_CODES)
 
 
 class PoolPVMode(SelectionBase):

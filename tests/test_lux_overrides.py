@@ -635,11 +635,13 @@ class TestHeatingCircuitControlMode:
         return Parameters.parameters[103]
 
     def test_writes_an_int(self):
-        raw = self._datatype().to_heatpump("1")
+        raw = self._datatype().to_heatpump("fixed_temperature")
         assert raw == 1
         assert isinstance(raw, int)
 
-    def test_reads_back_the_option_name_unchanged(self):
-        """The option names stay "0"/"1"/"2" - renaming them would break the
-        translations and any automation comparing the state."""
-        assert self._datatype().from_heatpump(1) == "1"
+    def test_reads_the_named_mode(self):
+        """The raw digits carried no meaning in the state; the names the
+        integration already had in LuxHeatingControlModeTypes do."""
+        assert self._datatype().from_heatpump(0) == "heating_curve_control"
+        assert self._datatype().from_heatpump(1) == "fixed_temperature"
+        assert self._datatype().from_heatpump(2) == "analog_in"

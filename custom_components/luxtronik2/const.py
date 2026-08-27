@@ -274,11 +274,21 @@ class LuxMkTypes(Enum):
 
 
 class LuxHeatingControlModeTypes(StrEnum):
-    """LuxHeatingControlModeTypes etc."""
+    """How the heating circuit derives its flow setpoint (P0103)."""
 
-    heating_curve_control = "0"
-    fixed_temperature = "1"
-    analog_in = "2"
+    heating_curve_control = "heating_curve_control"
+    fixed_temperature = "fixed_temperature"
+    analog_in = "analog_in"
+
+
+# Raw values P0103 stores for the modes above. lux_overrides turns these into
+# the HeatingCircuitControlMode datatype, so the register reads and writes as
+# a name rather than a bare digit.
+HEATING_CONTROL_MODE_CODES: Final[dict[int, str]] = {
+    0: LuxHeatingControlModeTypes.heating_curve_control,
+    1: LuxHeatingControlModeTypes.fixed_temperature,
+    2: LuxHeatingControlModeTypes.analog_in,
+}
 
 
 class LuxRoomThermostatType(Enum):

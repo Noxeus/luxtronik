@@ -1149,9 +1149,9 @@
             "heating_control_circuit_mode": {
                 "name": "Verwarmingsmodus aansturing",
                 "state": {
-                    "0": "Verwarmingscurve aansturing - buitentemperatuur gestuurd",
-                    "1": "Handmatig ingestelde temperatuur",
-                    "2": "Analoge ingang"
+                    "heating_curve_control": "Verwarmingscurve aansturing - buitentemperatuur gestuurd",
+                    "fixed_temperature": "Handmatig ingestelde temperatuur",
+                    "analog_in": "Analoge ingang"
                 }
             },
             "timer_dhw_program": {

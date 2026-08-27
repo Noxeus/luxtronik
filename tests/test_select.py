@@ -454,3 +454,24 @@ class TestSelectOptionsSurviveTheLibraryWritePath:
                     f"{name} option {raw!r} queues {queued!r}, "
                     "which Luxtronik.write silently discards"
                 )
+
+
+class TestHeatingControlCircuitModeOptions:
+    """P0103's options used to be the raw digits "0"/"1"/"2", which said
+    nothing to anyone reading the state."""
+
+    def test_options_are_named(self):
+        from custom_components.luxtronik2.select_entities_predefined import (
+            SELECT_ENTITIES,
+        )
+
+        description = next(
+            d
+            for d in SELECT_ENTITIES
+            if d.key == SensorKey.HEATING_CONTROL_CIRCUIT_MODE
+        )
+        assert description.options == [
+            "heating_curve_control",
+            "fixed_temperature",
+            "analog_in",
+        ]

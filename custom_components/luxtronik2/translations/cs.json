@@ -1149,9 +1149,9 @@
             "heating_control_circuit_mode": {
                 "name": "Režim regulace topného okruhu",
                 "state": {
-                    "0": "Regulace topnou křivkou - Řízené venkovní teplotou",
-                    "1": "Manuálně nastavená teplota",
-                    "2": "Analogový vstup"
+                    "heating_curve_control": "Regulace topnou křivkou - Řízené venkovní teplotou",
+                    "fixed_temperature": "Manuálně nastavená teplota",
+                    "analog_in": "Analogový vstup"
                 }
             },
             "timer_dhw_program": {

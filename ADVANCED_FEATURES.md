@@ -35,6 +35,7 @@ A few things worth knowing before using it:
 - **The Manual target flow out temperature (Number) and the Flow out target temperature (Sensor) are two different parameters.** The Number entity is what you write; the Sensor is the heat pump's own *calculated* current target, and it only catches up once the heat pump re-evaluates internally on its next poll (default every 60s — see [Integration Options](#integration-options) to poll faster if you need quicker feedback while testing). Seeing the sensor lag behind right after a change, or right after switching modes, is expected, not a sync bug.
 - **The heat pump still enforces its own configured maximum flow temperature** (set on the physical/installer panel) regardless of what you request through the Number entity — so this cannot push the system past whatever ceiling was configured during commissioning.
 - Because this fully replaces the built-in heating-curve regulation, treat it like the heating-curve parameters elsewhere in this README: avoid changing it frequently or aggressively via automations, since heat pumps are slow-reacting systems.
+- **The state values changed.** This entity used to report the raw digits `0` / `1` / `2`; it now reports `heating_curve_control` / `fixed_temperature` / `analog_in`, which is what the displayed names already said. An automation comparing the old digits, or calling `select.select_option` with one, needs updating.
 
 ## Room Thermostat (RBE) Type and What "Target Temperature" Means
 
