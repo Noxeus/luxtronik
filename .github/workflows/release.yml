@@ -65,6 +65,17 @@ jobs:
           LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
           echo "PREVIOUS_STABLE=$LATEST_TAG" >> $GITHUB_ENV
 
+      # Lifts the "⚠️ Upgrade notes" section out of every PR merged since that
+      # tag, so what an author wrote for users reaches the release instead of
+      # having to be pasted in by hand afterwards (as 2026.08.15/.17/.18 were)
+      - name: Collect Upgrade Notes From Pull Requests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_NOTES_PATH: release_notes.md
+        run: |
+          python3 .github/scripts/collect_release_notes.py
+
       # Creates the release based on your choice
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -72,6 +83,10 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
           generate_release_notes: true
+          # Pre-pended to the generated notes, so the upgrade notes come first
+          # and "What's Changed" follows - the layout the hand-written releases
+          # already used. Empty when no merged PR carried a note
+          body_path: release_notes.md
           # Always compare against the previous full release, so pre-release notes include
           # every PR merged since the last full release too
           previous_tag: ${{ env.PREVIOUS_STABLE }}
