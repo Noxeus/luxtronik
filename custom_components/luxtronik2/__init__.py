@@ -87,6 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LuxtronikConfigEntry) ->
     # ensures device_infos is populated before pruning against it.
     coordinator.get_device()
     await _async_delete_legacy_devices(hass, entry, coordinator)
+    await _async_remove_legacy_smart_grid_switch(hass, entry)
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -538,6 +539,35 @@ async def _rename_curve_entities(
             ]
         },
     )
+
+
+async def _async_remove_legacy_smart_grid_switch(
+    hass: HomeAssistant, config_entry: ConfigEntry
+) -> None:
+    """Drop the switch entity P1030 used to have before it became a select.
+
+    P1030 holds a four-option SmartGrid mode, not a flag: as a switch, turning
+    it off and on rewrote "SG 1.1" to "+/-" and silently changed the variant
+    the controller runs. The replacement lives on another platform, so the old
+    entity cannot be renamed into it - left in the registry it would linger as
+    an unavailable entity with no name, and automations calling switch.turn_on
+    on it would fail silently.
+
+    Done lazily here rather than through a CONFIG_ENTRY_VERSION bump, which
+    would stop the entry loading on older releases and take rollback away
+    from every user.
+    """
+    prefix = config_entry.data[CONF_HA_SENSOR_PREFIX]
+    unique_id = f"{P.SWITCH}.{prefix}_smartgrid"
+    ent_reg = async_get(hass)
+    entity_id = ent_reg.async_get_entity_id(P.SWITCH, DOMAIN, unique_id)
+    if entity_id is not None:
+        ent_reg.async_remove(entity_id)
+        LOGGER.info(
+            "Removed the legacy SmartGrid switch %s - P1030 is now the "
+            "Smart Grid mode select",
+            entity_id,
+        )
 
 
 async def _fix_select_entity_unique_ids(

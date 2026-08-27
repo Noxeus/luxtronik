@@ -95,9 +95,6 @@
             },
             "pump_vent_active": {
                 "name": "Venting active"
-            },
-            "smartgrid": {
-                "name": "Smart Grid"
             }
         },
         "update": {
@@ -295,7 +292,9 @@
                     "evu_locked": "EVU locked",
                     "reduced_operation": "Reduced operation",
                     "normal_operation": "Normal operation",
-                    "increased_operation": "Increased operation"
+                    "increased_operation": "Increased operation",
+                    "power_limitation": "Power limitation active",
+                    "start_command": "Start command"
                 }
             },
             "error_reason": {
@@ -1150,9 +1149,9 @@
             "heating_control_circuit_mode": {
                 "name": "Heating circuit control mode",
                 "state": {
-                    "0": "heating curve control - Controlled by outside temperature",
-                    "1": "Manual set temperature",
-                    "2": "Analog in"
+                    "heating_curve_control": "heating curve control - Controlled by outside temperature",
+                    "fixed_temperature": "Manual set temperature",
+                    "analog_in": "Analog in"
                 }
             },
             "timer_dhw_program": {
@@ -1243,6 +1242,15 @@
                     "automatic": "Automatic",
                     "party": "Party",
                     "holidays": "Holidays"
+                }
+            },
+            "smart_grid_mode": {
+                "name": "Smart Grid mode",
+                "state": {
+                    "off": "Off",
+                    "plus_minus": "+/-",
+                    "sg_1_0": "SG 1.0",
+                    "sg_1_1": "SG 1.1"
                 }
             }
         },

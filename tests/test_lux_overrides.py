@@ -591,3 +591,70 @@ class TestTimerScheduleDatatypeCoverage:
         assert isinstance(parameters[222], TimerProgram)
         for number in (223, 282):
             assert isinstance(parameters[number], TimeOfDay), number
+
+
+class TestSmartGridMode:
+    """P1030 is a four-option mode selector, so it needs a real datatype.
+
+    Left as Unknown it has no to_heatpump conversion, and Luxtronik.write
+    discards every queued value that is not an int - so the select wrote
+    nothing at all and then failed its write confirmation.
+    """
+
+    def _datatype(self):
+        lux_overrides.update_Luxtronik_HeatpumpCodes()
+        lux_overrides.update_Luxtronik_Parameters()
+        return Parameters.parameters[1030]
+
+    def test_registered_on_parameter_1030(self):
+        assert type(self._datatype()).__name__ == "SmartGridMode"
+
+    def test_writes_an_int(self):
+        raw = self._datatype().to_heatpump("sg_1_1")
+        assert raw == 3
+        assert isinstance(raw, int)
+
+    def test_reads_the_menu_entry(self):
+        assert self._datatype().from_heatpump(3) == "sg_1_1"
+        assert self._datatype().from_heatpump(0) == "off"
+
+    def test_a_raw_code_stays_writable_for_the_write_service(self):
+        """luxtronik2.write passes the number the user typed. Before this
+        parameter had a datatype it was written as-is; a SelectionBase that
+        only knows names would queue None, which Luxtronik.write discards -
+        and the write confirmation then raises at the user.
+        """
+        raw = self._datatype().to_heatpump(3)
+        assert raw == 3
+        assert isinstance(raw, int)
+
+    def test_an_undocumented_code_passes_through_instead_of_reading_none(self):
+        """None already means "the controller never sent this register", and
+        for parameter 1030 nothing can tell those two apart afterwards. A
+        firmware with a fifth mode must not read as an absent register."""
+        assert self._datatype().from_heatpump(4) == 4
+
+
+class TestHeatingCircuitControlMode:
+    """P0103 has the same defect as P1030 had: an Unknown parameter driven by
+    a select, so selecting a mode queued a string and wrote nothing."""
+
+    def _datatype(self):
+        lux_overrides.update_Luxtronik_HeatpumpCodes()
+        lux_overrides.update_Luxtronik_Parameters()
+        return Parameters.parameters[103]
+
+    def test_writes_an_int(self):
+        raw = self._datatype().to_heatpump("fixed_temperature")
+        assert raw == 1
+        assert isinstance(raw, int)
+
+    def test_a_raw_code_stays_writable_for_the_write_service(self):
+        assert self._datatype().to_heatpump(1) == 1
+
+    def test_reads_the_named_mode(self):
+        """The raw digits carried no meaning in the state; the names the
+        integration already had in LuxHeatingControlModeTypes do."""
+        assert self._datatype().from_heatpump(0) == "heating_curve_control"
+        assert self._datatype().from_heatpump(1) == "fixed_temperature"
+        assert self._datatype().from_heatpump(2) == "analog_in"

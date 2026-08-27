@@ -95,9 +95,6 @@
             },
             "pump_vent_active": {
                 "name": "Odvětrávání aktiví"
-            },
-            "smartgrid": {
-                "name": "Smart Grid"
             }
         },
         "update": {
@@ -295,7 +292,9 @@
                     "evu_locked": "Blokováno EVU",
                     "reduced_operation": "Snížený provoz",
                     "normal_operation": "Normální provoz",
-                    "increased_operation": "Zvýšený provoz"
+                    "increased_operation": "Zvýšený provoz",
+                    "power_limitation": "Omezení výkonu aktivní",
+                    "start_command": "Příkaz ke spuštění"
                 }
             },
             "error_reason": {
@@ -1150,9 +1149,9 @@
             "heating_control_circuit_mode": {
                 "name": "Režim regulace topného okruhu",
                 "state": {
-                    "0": "Regulace topnou křivkou - Řízené venkovní teplotou",
-                    "1": "Manuálně nastavená teplota",
-                    "2": "Analogový vstup"
+                    "heating_curve_control": "Regulace topnou křivkou - Řízené venkovní teplotou",
+                    "fixed_temperature": "Manuálně nastavená teplota",
+                    "analog_in": "Analogový vstup"
                 }
             },
             "timer_dhw_program": {
@@ -1243,6 +1242,15 @@
                     "automatic": "Automaticky",
                     "party": "Párty",
                     "holidays": "Dovolená"
+                }
+            },
+            "smart_grid_mode": {
+                "name": "Režim Smart Grid",
+                "state": {
+                    "off": "Ne",
+                    "plus_minus": "+/-",
+                    "sg_1_0": "SG 1.0",
+                    "sg_1_1": "SG 1.1"
                 }
             }
         },

@@ -775,7 +775,7 @@ class TestEntityActive:
                 "ID_WEB_SoftStand": "V3.90.1",
                 "ID_WEB_Zaehler_BetrZeitHz": 100,
             },
-            parameters={"ID_Einst_SmartGrid": 0},
+            parameters={"ID_Einst_SmartGrid": "off"},
         )
         desc = LuxtronikEntityDescription(
             key="test",
@@ -792,7 +792,7 @@ class TestEntityActive:
                 "ID_WEB_Zaehler_BetrZeitHz": 100,
             },
             parameters={
-                "ID_Einst_SmartGrid": 1,
+                "ID_Einst_SmartGrid": "plus_minus",
                 "SMART_GRID_HEATING_REDUCTION": -2.0,
             },
         )
@@ -806,8 +806,8 @@ class TestEntityActive:
 
     def test_smart_grid_offsets_active_for_non_flag_mode_value(self):
         """P1030 holds a mode, not a flag: the Luxtronik 2.0 unit in #669
-        reports 3 with Smart Grid on, and the WZS in the corpus does too.
-        An `== 1` gate would wrongly drop the entities there.
+        reports 3 ("SG 1.1") with Smart Grid on, and the WZS in the corpus
+        does too. An `== 1` gate would wrongly drop the entities there.
         """
         coord = _make_coordinator(
             calculations={
@@ -815,7 +815,7 @@ class TestEntityActive:
                 "ID_WEB_Zaehler_BetrZeitHz": 100,
             },
             parameters={
-                "ID_Einst_SmartGrid": 3,
+                "ID_Einst_SmartGrid": "sg_1_1",
                 "SMART_GRID_HEATING_REDUCTION": -2.0,
             },
         )
@@ -842,7 +842,7 @@ class TestEntityActive:
                 "ID_WEB_SoftStand": "V3.90.1",
                 "ID_WEB_Zaehler_BetrZeitHz": 100,
             },
-            parameters={"ID_Einst_SmartGrid": 1},
+            parameters={"ID_Einst_SmartGrid": "plus_minus"},
         )
         desc = LuxtronikEntityDescription(
             key="test",
@@ -882,7 +882,7 @@ class TestEntityActive:
                 "ID_WEB_Zaehler_BetrZeitBW": 0,
             },
             parameters={
-                "ID_Einst_SmartGrid": 1,
+                "ID_Einst_SmartGrid": "plus_minus",
                 "SMART_GRID_DHW_INCREASE": 2.0,
             },
         )

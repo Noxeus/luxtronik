@@ -21,6 +21,8 @@ from .common import (
     key_exists,
     read_smart_grid_inputs,
     smart_grid_enabled,
+    smart_grid_mode,
+    smart_grid_status,
     state_as_number_or_none,
 )
 from .const import (
@@ -31,7 +33,6 @@ from .const import (
     DeviceKey,
     LuxCalculation as LC,
     LuxParameter as LP,
-    LuxSmartGridStatus,
     SensorAttrFormat,
     SensorAttrKey as SA,
     SensorKey,
@@ -370,19 +371,12 @@ class LuxtronikStatusSensorEntity(LuxtronikSensorEntity):
             # generation, so the inputs are derived rather than read (#669).
             evu_on, evu2_on = read_smart_grid_inputs(self.coordinator.data)
 
-            # Determine SmartGrid status based on EVU and EVU2 inputs
-            # EVU=0, EVU2=0 → Status 2 (reduced operation)
-            # EVU=1, EVU2=0 → Status 1 (EVU locked)
-            # EVU=0, EVU2=1 → Status 3 (normal operation)
-            # EVU=1, EVU2=1 → Status 4 (increased operation)
-            if evu_on and not evu2_on:
-                self._attr_native_value = LuxSmartGridStatus.locked  # Status 1
-            elif not evu_on and not evu2_on:
-                self._attr_native_value = LuxSmartGridStatus.reduced  # Status 2
-            elif not evu_on and evu2_on:
-                self._attr_native_value = LuxSmartGridStatus.normal  # Status 3
-            else:  # evu_on and evu2_on
-                self._attr_native_value = LuxSmartGridStatus.increased  # Status 4
+            # Which state a contact pair means depends on the SmartGrid
+            # variant selected at the controller: "+/-", "SG 1.0" and
+            # "SG 1.1" each have their own table (see SMART_GRID_STATE_TABLES).
+            self._attr_native_value = smart_grid_status(
+                smart_grid_mode(self.coordinator.data), evu_on, evu2_on
+            )
 
         # Don't call super() to avoid setting value to None (luxtronik_key=UNSET)
         self._enrich_extra_attributes()

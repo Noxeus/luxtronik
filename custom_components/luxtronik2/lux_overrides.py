@@ -24,8 +24,10 @@ from .const import (
     CONF_CALCULATIONS,
     CONF_PARAMETERS,
     CONF_VISIBILITIES,
+    HEATING_CONTROL_MODE_CODES,
     LOGGER,
     PARSED_COUNT_ATTR,
+    SMART_GRID_MODE_CODES,
 )
 
 
@@ -135,6 +137,50 @@ class TimerProgram(SelectionBase):
         1: "5+2",
         2: "days",
     }
+
+
+class KnownCodeSelection(SelectionBase):
+    """SelectionBase that keeps a code it does not know instead of dropping it.
+
+    Upstream returns None for an unrecognised code, but None already means
+    "the controller never sent this register" - and for a parameter below
+    UPSTREAM_MAX_DEFINED_INDEX nothing downstream can tell those two apart
+    afterwards. Passing the raw value through keeps them distinguishable, so
+    a firmware with an undocumented extra mode degrades to a fallback rather
+    than looking like a missing register.
+    """
+
+    def from_heatpump(self, value):
+        return self.codes.get(value, value)
+
+    def to_heatpump(self, value):
+        # Symmetric with from_heatpump: the luxtronik2.write service hands
+        # over the raw number the user typed, which upstream would map to
+        # None and Luxtronik.write would then discard unwritten. Anything
+        # that is not a known name is passed through for the library's own
+        # int check to judge.
+        raw = super().to_heatpump(value)
+        return value if raw is None else raw
+
+
+class SmartGridMode(KnownCodeSelection):
+    """SmartGridMode datatype for P1030 - see SMART_GRID_MODE_CODES."""
+
+    measurement_type = "selection"
+
+    codes = dict(SMART_GRID_MODE_CODES)
+
+
+class HeatingCircuitControlMode(KnownCodeSelection):
+    """HeatingCircuitControlMode datatype for P0103.
+
+    Without this datatype the parameter is Unknown, and the select's string
+    option is queued as-is and discarded unwritten.
+    """
+
+    measurement_type = "selection"
+
+    codes = dict(HEATING_CONTROL_MODE_CODES)
 
 
 class PoolPVMode(SelectionBase):
@@ -291,6 +337,13 @@ def update_Luxtronik_Parameters():
     ]
     update_Luxtronik_Parameter_Classes(time_of_day_numbers, TimeOfDay)
     update_Luxtronik_Parameter_Classes(list(timer_program_numbers), TimerProgram)
+
+    # Mode selectors the upstream library still models as Unknown. Both are
+    # driven by a select entity, and an Unknown parameter has no to_heatpump,
+    # so the option string was queued as-is and then discarded by
+    # Luxtronik.write, which only writes ints.
+    update_Luxtronik_Parameter_Classes([1030], SmartGridMode)
+    update_Luxtronik_Parameter_Classes([103], HeatingCircuitControlMode)
 
 
 def update_Luxtronik_Parameter_Classes(numbers, datatype_class):

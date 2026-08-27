@@ -346,3 +346,132 @@ class TestTimerProgramSelects:
                 d for d in TIMER_SCHEDULE_ENTITIES if d.key == schedule_key
             )
             assert parameter.value == f"parameters.{description.mode_selector_name}"
+
+
+# ===========================================================================
+# SmartGrid mode selector (P1030)
+# ===========================================================================
+
+
+class TestSmartGridModeSelector:
+    """P1030 holds a four-option mode, so it must not be a switch."""
+
+    def _description(self):
+        from custom_components.luxtronik2.select_entities_predefined import (
+            SELECT_ENTITIES,
+        )
+
+        return next(d for d in SELECT_ENTITIES if d.key == SensorKey.SMART_GRID_MODE)
+
+    def _make_selector(self, raw_value):
+        from custom_components.luxtronik2.select import LuxtronikModeSelector
+
+        data = make_coordinator_data(parameters={"ID_Einst_SmartGrid": raw_value})
+        coord = _mock_coordinator(data)
+        entity = LuxtronikModeSelector(
+            _mock_entry(), coord, self._description(), DeviceKey.heatpump
+        )
+        _patch_entity(entity)
+        return entity, coord
+
+    def test_p1030_is_no_longer_a_switch(self):
+        """A switch toggled off and on rewrote 3 to 0 to 1, silently changing
+        the user's SmartGrid variant."""
+        from custom_components.luxtronik2.switch_entities_predefined import (
+            SWITCHES,
+        )
+
+        assert all(
+            d.luxtronik_key != LuxParameter.P1030_SMART_GRID_SWITCH for d in SWITCHES
+        )
+
+    def test_options_are_the_menu_entries(self):
+        description = self._description()
+        assert description.luxtronik_key == LuxParameter.P1030_SMART_GRID_SWITCH
+        assert description.device_key is DeviceKey.heatpump
+        assert description.options == ["off", "plus_minus", "sg_1_0", "sg_1_1"]
+        # No raw_option_map: the SmartGridMode datatype does the conversion,
+        # so the option name is what gets read back and written.
+        assert description.raw_option_map is None
+
+    def test_raw_value_maps_to_the_menu_entry(self):
+        """The #669 unit reads 3, which the datatype decodes to "SG 1.1"."""
+        entity, _coord = self._make_selector("sg_1_1")
+        entity._handle_coordinator_update()
+        assert entity._attr_current_option == "sg_1_1"
+
+    def test_switched_off_reads_as_off(self):
+        entity, _coord = self._make_selector("off")
+        entity._handle_coordinator_update()
+        assert entity._attr_current_option == "off"
+
+    @pytest.mark.asyncio
+    async def test_selecting_a_mode_writes_its_raw_value(self):
+        entity, coord = self._make_selector("sg_1_1")
+        await entity.async_select_option("sg_1_0")
+        coord.async_write.assert_awaited_once_with("ID_Einst_SmartGrid", "sg_1_0")
+
+
+class TestSelectOptionsSurviveTheLibraryWritePath:
+    """luxtronik.Luxtronik.write drops any queued value that is not an int.
+
+    A select whose option (or mapped raw value) is still a string after
+    Parameters.set therefore writes nothing at all: the heat pump never sees
+    it, and the coordinator's write confirmation then fails the call at the
+    user. What saves a select is the parameter's datatype - a SelectionBase
+    maps the name back to its code, an Unknown parameter does not.
+    """
+
+    def test_every_option_reaches_the_queue_as_an_int(self):
+        from luxtronik.parameters import Parameters
+
+        from custom_components.luxtronik2 import lux_overrides
+        from custom_components.luxtronik2.select_entities_predefined import (
+            SELECT_ENTITIES,
+        )
+
+        # The integration patches the library once per process before it ever
+        # writes (connect_and_get_coordinator), and that is what gives the
+        # timer programs and the two mode selectors their datatypes.
+        lux_overrides.update_Luxtronik_HeatpumpCodes()
+        lux_overrides.update_Luxtronik_Parameters()
+
+        for description in SELECT_ENTITIES:
+            if description.key == SensorKey.THERMAL_DESINFECTION_DAY:
+                # Writes its own 0/1 day flags, not an option value.
+                continue
+            raw_values = (
+                list(description.raw_option_map.values())
+                if description.raw_option_map
+                else list(description.options or [])
+            )
+            name = str(description.luxtronik_key).split(".")[1]
+            for raw in raw_values:
+                parameters = Parameters(safe=False)
+                parameters.set(name, raw)
+                queued = list(parameters.queue.values())
+                assert queued and isinstance(queued[0], int), (
+                    f"{name} option {raw!r} queues {queued!r}, "
+                    "which Luxtronik.write silently discards"
+                )
+
+
+class TestHeatingControlCircuitModeOptions:
+    """P0103's options used to be the raw digits "0"/"1"/"2", which said
+    nothing to anyone reading the state."""
+
+    def test_options_are_named(self):
+        from custom_components.luxtronik2.select_entities_predefined import (
+            SELECT_ENTITIES,
+        )
+
+        description = next(
+            d
+            for d in SELECT_ENTITIES
+            if d.key == SensorKey.HEATING_CONTROL_CIRCUIT_MODE
+        )
+        assert description.options == [
+            "heating_curve_control",
+            "fixed_temperature",
+            "analog_in",
+        ]
