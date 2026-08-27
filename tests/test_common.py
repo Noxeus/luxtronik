@@ -14,6 +14,7 @@ from custom_components.luxtronik2.common import (
     key_exists,
     normalize_sensor_value,
     read_smart_grid_inputs,
+    smart_grid_enabled,
     smart_grid_mode,
     smart_grid_status,
     state_as_number_or_none,
@@ -780,3 +781,12 @@ def test_every_selectable_mode_has_a_state_table():
 
     selectable = {v for v in SMART_GRID_MODE_CODES.values() if v != "off"}
     assert selectable == set(SMART_GRID_STATE_TABLES)
+
+
+class TestSmartGridModeOffForms:
+    """Every shape a controller can report for "SmartGrid off"."""
+
+    @pytest.mark.parametrize("value", ["off", 0, "0", False, "", "false", "False"])
+    def test_reads_as_off(self, value):
+        assert smart_grid_mode(_sg_data(smart_grid=value)) == "off"
+        assert smart_grid_enabled(_sg_data(smart_grid=value)) is False

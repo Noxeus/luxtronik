@@ -153,6 +153,15 @@ class KnownCodeSelection(SelectionBase):
     def from_heatpump(self, value):
         return self.codes.get(value, value)
 
+    def to_heatpump(self, value):
+        # Symmetric with from_heatpump: the luxtronik2.write service hands
+        # over the raw number the user typed, which upstream would map to
+        # None and Luxtronik.write would then discard unwritten. Anything
+        # that is not a known name is passed through for the library's own
+        # int check to judge.
+        raw = super().to_heatpump(value)
+        return value if raw is None else raw
+
 
 class SmartGridMode(KnownCodeSelection):
     """SmartGridMode datatype for P1030 - see SMART_GRID_MODE_CODES."""

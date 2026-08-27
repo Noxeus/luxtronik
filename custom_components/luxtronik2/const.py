@@ -396,11 +396,6 @@ DAY_NAME_TO_PARAM: Final[dict[str, LuxDaySelectorParameter]] = {
 }
 
 # The SmartGrid variant selected at Service > Einstellungen > System
-# Einstellung > Smart Grid (P1030), mapping the controller's menu entries onto
-# the raw values it stores: 0 Nein, 1 "+/-", 2 "SG 1.0", 3 "SG 1.1"
-# (Luxtronik 2.0 part 2 manual, revision k, 83055300kDE p29). Each on-mode has
-# its own state table, so this is a mode and never a flag.
-# The SmartGrid variant selected at Service > Einstellungen > System
 # Einstellung > Smart Grid (P1030), mapping the raw value the controller
 # stores onto the menu entry it shows: 0 Nein, 1 "+/-", 2 "SG 1.0", 3 "SG 1.1"
 # (Luxtronik 2.0 part 2 manual, revision k, 83055300kDE p29). Each on-mode has

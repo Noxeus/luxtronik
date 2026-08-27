@@ -163,10 +163,10 @@ def _as_bool(value: Any) -> bool:
     return value in [True, 1, "1", "true", "True"]
 
 
-SMART_GRID_OFF = "off"
-SMART_GRID_PLUS_MINUS = "plus_minus"
-SMART_GRID_SG_1_0 = "sg_1_0"
-SMART_GRID_SG_1_1 = "sg_1_1"
+SMART_GRID_OFF = SMART_GRID_MODE_CODES[0]
+SMART_GRID_PLUS_MINUS = SMART_GRID_MODE_CODES[1]
+SMART_GRID_SG_1_0 = SMART_GRID_MODE_CODES[2]
+SMART_GRID_SG_1_1 = SMART_GRID_MODE_CODES[3]
 
 # The controller's own state tables, keyed by the mode selected at
 # Service > Einstellungen > System Einstellung > Smart Grid (P1030) and then by
@@ -200,10 +200,11 @@ SMART_GRID_STATE_TABLES: dict[str, dict[tuple[bool, bool], LuxSmartGridStatus]] 
     },
 }
 
-# Values a controller can report for "off" once the SmartGridMode datatype has
-# decoded the register, plus the undecoded forms a unit can still produce if
-# the register never reached that datatype.
-_SMART_GRID_OFF_VALUES = [SMART_GRID_OFF, 0, "0", False, "false", "False"]
+# Values meaning "off" that the raw-code decoding above does not already
+# cover. It handles 0 - and, by hash equality, False - so what is left is the
+# string forms a firmware can report when the register never reached the
+# SmartGridMode datatype.
+_SMART_GRID_OFF_VALUES = [SMART_GRID_OFF, "0", "", "false", "False"]
 
 
 def smart_grid_mode(coordinator: LuxtronikCoordinatorData) -> str:

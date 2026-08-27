@@ -618,6 +618,16 @@ class TestSmartGridMode:
         assert self._datatype().from_heatpump(3) == "sg_1_1"
         assert self._datatype().from_heatpump(0) == "off"
 
+    def test_a_raw_code_stays_writable_for_the_write_service(self):
+        """luxtronik2.write passes the number the user typed. Before this
+        parameter had a datatype it was written as-is; a SelectionBase that
+        only knows names would queue None, which Luxtronik.write discards -
+        and the write confirmation then raises at the user.
+        """
+        raw = self._datatype().to_heatpump(3)
+        assert raw == 3
+        assert isinstance(raw, int)
+
     def test_an_undocumented_code_passes_through_instead_of_reading_none(self):
         """None already means "the controller never sent this register", and
         for parameter 1030 nothing can tell those two apart afterwards. A
@@ -638,6 +648,9 @@ class TestHeatingCircuitControlMode:
         raw = self._datatype().to_heatpump("fixed_temperature")
         assert raw == 1
         assert isinstance(raw, int)
+
+    def test_a_raw_code_stays_writable_for_the_write_service(self):
+        assert self._datatype().to_heatpump(1) == 1
 
     def test_reads_the_named_mode(self):
         """The raw digits carried no meaning in the state; the names the
