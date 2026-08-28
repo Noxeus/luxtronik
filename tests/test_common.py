@@ -461,6 +461,71 @@ class TestNormalizeSensorValue:
         )
         assert result == LuxOperationMode.cooling
 
+    def test_cooling_survives_a_flow_meter_dropout(self):
+        """A single-poll zero from the heat-source flow meter must not clear cooling.
+
+        Issue #773: on a cooling unit the flow register drops to 0 for exactly
+        one poll while the pump output stays on, which flipped the status to
+        no_request on ~20% of polls. Either register is enough to show the
+        machine is circulating, so one dropping out must not clear cooling.
+        """
+        data = make_coordinator_data(
+            calculations={
+                "ID_WEB_HauptMenuStatus_Zeile3": LuxStatus3Option.heating,
+                "ID_WEB_Temperatur_TVL": 17.4,
+                "ID_WEB_Temperatur_TRL": 18.7,  # +1.3 K, house water warms up
+                "ID_WEB_Temperatur_TWE": 13.1,
+                "ID_WEB_Temperatur_TWA": 14.9,  # +1.8 K, heat source warms
+                "ID_WEB_Durchfluss_WQ": 0.0,  # C0173 dropout
+                "ID_WEB_VBOout": True,  # C0043 source pump still running
+            }
+        )
+        result = normalize_sensor_value(
+            LuxOperationMode.no_request, data, LC.C0080_STATUS
+        )
+        assert result == LuxOperationMode.cooling
+
+    def test_cooling_survives_a_lagging_pump_register(self):
+        """The mirror case: real flow while the pump register reads False.
+
+        Units 330612_0542, 330123_0145 and 350909_0135 in the diagnostics
+        corpus all report over 900 l/h with VBOout False, so the pump
+        register can drop out just as the flow register can.
+        """
+        data = make_coordinator_data(
+            calculations={
+                "ID_WEB_HauptMenuStatus_Zeile3": LuxStatus3Option.heating,
+                "ID_WEB_Temperatur_TVL": 17.4,
+                "ID_WEB_Temperatur_TRL": 18.7,
+                "ID_WEB_Temperatur_TWE": 13.1,
+                "ID_WEB_Temperatur_TWA": 14.9,
+                "ID_WEB_Durchfluss_WQ": 887.0,
+                "ID_WEB_VBOout": False,
+            }
+        )
+        result = normalize_sensor_value(
+            LuxOperationMode.no_request, data, LC.C0080_STATUS
+        )
+        assert result == LuxOperationMode.cooling
+
+    def test_cooling_needs_something_circulating(self):
+        """With neither flow nor pump there is no circulation - not cooling."""
+        data = make_coordinator_data(
+            calculations={
+                "ID_WEB_HauptMenuStatus_Zeile3": LuxStatus3Option.heating,
+                "ID_WEB_Temperatur_TVL": 17.4,
+                "ID_WEB_Temperatur_TRL": 18.7,
+                "ID_WEB_Temperatur_TWE": 13.1,
+                "ID_WEB_Temperatur_TWA": 14.9,
+                "ID_WEB_Durchfluss_WQ": 0.0,
+                "ID_WEB_VBOout": False,
+            }
+        )
+        result = normalize_sensor_value(
+            LuxOperationMode.no_request, data, LC.C0080_STATUS
+        )
+        assert result == LuxOperationMode.no_request
+
     def test_status_no_request_not_active_cooling(self):
         """If no_request + status_line3=heating but temps don't indicate cooling → stays no_request."""
         data = make_coordinator_data(
