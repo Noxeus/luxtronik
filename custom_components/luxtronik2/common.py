@@ -402,7 +402,15 @@ def _derive_operation_mode(value: Any, coordinator: LuxtronikCoordinatorData) ->
             )
             Flow_WQ = get_sensor_data(coordinator, LC.C0173_HEAT_SOURCE_FLOW_RATE)
             Pump = get_sensor_data(coordinator, LC.C0043_PUMP_FLOW)
-            if (T_out > T_in) and (T_heat_out > T_heat_in) and (Flow_WQ > 0) and Pump:
+            # Flow rate and pump are OR-ed rather than AND-ed: either one is
+            # enough to show the machine is circulating. AND-ing them let one
+            # register veto the other, and both are seen dropping out on their
+            # own - in #773 the flow rate read 0 for a single poll while the
+            # pump stayed on, clearing cooling on roughly a fifth of all polls,
+            # and units 330612_0542, 330123_0145 and 350909_0135 in the corpus
+            # show the reverse, over 900 l/h with the pump register False. The
+            # two temperature deltas stay AND-ed: they discriminate cooling.
+            if (T_out > T_in) and (T_heat_out > T_heat_in) and ((Flow_WQ > 0) or Pump):
                 return LuxOperationMode.cooling
 
     if (
