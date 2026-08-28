@@ -9,7 +9,15 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 import homeassistant.helpers.config_validation as cv
 import pytest
 import voluptuous as vol
-import voluptuous_serialize
+
+try:
+    # Home Assistant 2026.9 serializes flow schemas with probatio, and
+    # cv.custom_serializer returns probatio's UNSUPPORTED sentinel. Feeding
+    # that to voluptuous_serialize leaks the sentinel into the output, so
+    # follow whichever library this HA version actually uses.
+    from probatio import to_field_list as _to_field_list
+except ImportError:  # pragma: no cover - older Home Assistant
+    from voluptuous_serialize import convert as _to_field_list
 
 from custom_components.luxtronik2.const import (
     CONF_HA_SENSOR_CURRENT_POWER_CONSUMPTION,
@@ -173,7 +181,5 @@ class TestBuildOptionsSchema:
         with a 500 (TypeError: Object of type timedelta is not JSON serializable).
         """
         schema = build_options_schema()
-        converted = voluptuous_serialize.convert(
-            schema, custom_serializer=cv.custom_serializer
-        )
+        converted = _to_field_list(schema, custom_serializer=cv.custom_serializer)
         json.dumps(converted)  # must not raise
