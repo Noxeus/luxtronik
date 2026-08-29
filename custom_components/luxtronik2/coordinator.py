@@ -630,24 +630,94 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
                 )
                 return None
 
+    @staticmethod
+    def _mk_type_can_cool(value: Any) -> bool:
+        """Does a mixing-circuit type register say the circuit can cool?
+
+        It reads a raw code today, but `lux_overrides` gives parameters
+        selection datatypes as their codes become known, and the register
+        would then read "cooling" rather than 3. Unlike the visibility gate
+        that raised in #773, this comparison fails silently: it evaluates
+        False and takes the mixing-circuit entities - and, through
+        `_detect_cooling_mk`, the whole cooling device - away from every
+        affected user, with nothing in the log to say so. Accepting both
+        spellings of the same answer costs a tuple.
+        """
+        return any(
+            value == mk_type.value or value == mk_type.name
+            for mk_type in (LuxMkTypes.cooling, LuxMkTypes.heating_cooling)
+        )
+
+    def _special_visibility(self, visibility: LV | LP) -> bool | None:
+        """Decide the gates a plain numeric read cannot decide.
+
+        Two kinds live here. Flags the controller sets unreliably (solar, the
+        DHW pump pair, cooling) are detected from the registers instead. And
+        parameters that hold a *mode* rather than a flag: P1030 decodes to a
+        name like "plus_minus", so comparing it to 0 raises (#773). That one
+        is decided here and in `entity_active` through the same
+        `smart_grid_enabled` helper, so the two cannot disagree about whether
+        Smart Grid is on - note that this method only drives
+        `entity_registry_enabled_default`, while `entity_active` is what
+        decides whether an entity exists at all.
+
+        Returns None for the gates that are ordinary numeric flags.
+        """
+        if visibility in (
+            LV.V0038_SOLAR_COLLECTOR,
+            LV.V0039_SOLAR_BUFFER,
+            LV.V0250_SOLAR,
+        ):
+            return self._detect_solar_present()
+        if visibility == LV.V0059_DHW_CIRCULATION_PUMP:
+            return self._detect_dhw_circulation_pump_present()
+        if visibility == LV.V0059A_DHW_CHARGING_PUMP:
+            return not self._detect_dhw_circulation_pump_present()
+        if visibility == LV.V0005_COOLING:
+            return self.detect_cooling_present()
+        if visibility == LP.P1030_SMART_GRID_SWITCH:
+            # P1030 holds a mode, so it needs the helper rather than a
+            # truthiness test - see the note in entity_active. #765, #773
+            return smart_grid_enabled(self.data)
+        return None
+
+    def _visibility_flag_set(self, value: Any, visibility: LV | LP) -> bool:
+        """Read a visibility register as the on/off flag it is meant to be.
+
+        A register whose datatype decodes it to a name is not a flag and
+        cannot be compared to 0. Guessing what such a name means would be
+        worse than useless, so this falls open exactly as an unreadable
+        register does: one entity enabled by default is a far smaller failure
+        than the `TypeError` that aborts `async_setup_entry` and leaves the
+        whole platform without entities (#773). The gate belongs in
+        `_special_visibility`; the warning names it.
+        """
+        # bool is an int, and True/False compare against 0 as intended.
+        if isinstance(value, (int, float)):
+            return value > 0
+        if isinstance(value, str):
+            try:
+                return float(value) > 0
+            except ValueError:
+                pass
+        LOGGER.warning(
+            "Visibility %s reads %s, which is not a flag - treating the entity "
+            "as visible. This register needs its own rule in "
+            "_special_visibility.",
+            visibility,
+            value,
+        )
+        return True
+
     def entity_visible(self, description: LuxtronikEntityDescription) -> bool:
         """Is description visible."""
         if description.visibility == LV.UNSET:
             return True
         # Detecting some options based on visibilities doesn't work reliably.
         # Use special functions
-        if description.visibility in [
-            LV.V0038_SOLAR_COLLECTOR,
-            LV.V0039_SOLAR_BUFFER,
-            LV.V0250_SOLAR,
-        ]:
-            return self._detect_solar_present()
-        if description.visibility == LV.V0059_DHW_CIRCULATION_PUMP:
-            return self._detect_dhw_circulation_pump_present()
-        if description.visibility == LV.V0059A_DHW_CHARGING_PUMP:
-            return not self._detect_dhw_circulation_pump_present()
-        if description.visibility == LV.V0005_COOLING:
-            return self.detect_cooling_present()
+        special_result = self._special_visibility(description.visibility)
+        if special_result is not None:
+            return special_result
         visibility_result = self.get_value(description.visibility)
         if visibility_result is None:
             LOGGER.warning("Could not load visibility %s", description.visibility)
@@ -658,7 +728,7 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
             )
             if formula_result is not None:
                 return formula_result
-        return visibility_result > 0
+        return self._visibility_flag_set(visibility_result, description.visibility)
 
     def entity_active(self, description: LuxtronikEntityDescription) -> bool:
         """Is description activated."""
@@ -669,11 +739,7 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
             LP.P0130_MIXING_CIRCUIT2_TYPE,
             LP.P0780_MIXING_CIRCUIT3_TYPE,
         ]:
-            sensor_value = self.get_value(description.visibility)
-            return sensor_value in [
-                LuxMkTypes.cooling.value,
-                LuxMkTypes.heating_cooling.value,
-            ]
+            return self._mk_type_can_cool(self.get_value(description.visibility))
         if description.visibility in [
             LV.V0038_SOLAR_COLLECTOR,
             LV.V0039_SOLAR_BUFFER,
@@ -843,11 +909,7 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
         """We iterate over the mk sensors, detect cooling and return a list of parameters that are may show cooling is enabled."""
         cooling_mk = []
         for mk_sensor in LUX_PARAMETER_MK_SENSORS:
-            sensor_value = self.get_value(mk_sensor)
-            if sensor_value in [
-                LuxMkTypes.cooling.value,
-                LuxMkTypes.heating_cooling.value,
-            ]:
+            if self._mk_type_can_cool(self.get_value(mk_sensor)):
                 cooling_mk = cooling_mk + [mk_sensor]
 
         return cooling_mk
