@@ -182,7 +182,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.HEAT_SOURCE_INPUT_TEMPERATURE,
-        luxtronik_key=LC.C0204_HEAT_SOURCE_INPUT_TEMPERATURE,
+        luxtronik_key=LC.C0019_HEAT_SOURCE_INPUT_TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -607,7 +607,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.HEAT_SOURCE_OUTPUT_TEMPERATURE,
-        luxtronik_key=LC.C0024_HEAT_SOURCE_OUTPUT_TEMPERATURE,
+        luxtronik_key=LC.C0020_HEAT_SOURCE_OUTPUT_TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -655,7 +655,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.FLOW_IN_CIRCUIT1_TEMPERATURE,
-        luxtronik_key=LC.C0018_FLOW_IN_CIRCUIT1_TEMPERATURE,
+        luxtronik_key=LC.C0021_FLOW_IN_CIRCUIT1_TEMPERATURE,
         device_key=DeviceKey.heating,
         entity_category=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -664,7 +664,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.FLOW_IN_CIRCUIT2_TEMPERATURE,
-        luxtronik_key=LC.C0019_FLOW_IN_CIRCUIT2_TEMPERATURE,
+        luxtronik_key=LC.C0024_FLOW_IN_CIRCUIT2_TEMPERATURE,
         device_key=DeviceKey.heating,
         entity_category=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -673,7 +673,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.FLOW_IN_CIRCUIT3_TEMPERATURE,
-        luxtronik_key=LC.C0020_FLOW_IN_CIRCUIT3_TEMPERATURE,
+        luxtronik_key=LC.C0137_FLOW_IN_CIRCUIT3_TEMPERATURE,
         device_key=DeviceKey.heating,
         entity_category=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -682,7 +682,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.FLOW_IN_CIRCUIT1_TARGET_TEMPERATURE,
-        luxtronik_key=LC.C0021_FLOW_IN_CIRCUIT1_TARGET_TEMPERATURE,
+        luxtronik_key=LC.C0022_FLOW_IN_CIRCUIT1_TARGET_TEMPERATURE,
         device_key=DeviceKey.heating,
         entity_category=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -691,7 +691,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.FLOW_IN_CIRCUIT2_TARGET_TEMPERATURE,
-        luxtronik_key=LC.C0022_FLOW_IN_CIRCUIT2_TARGET_TEMPERATURE,
+        luxtronik_key=LC.C0025_FLOW_IN_CIRCUIT2_TARGET_TEMPERATURE,
         device_key=DeviceKey.heating,
         entity_category=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -700,7 +700,7 @@ SENSORS: list[descr] = [
     ),
     descr(
         key=SensorKey.FLOW_IN_CIRCUIT3_TARGET_TEMPERATURE,
-        luxtronik_key=LC.C0023_FLOW_IN_CIRCUIT3_TARGET_TEMPERATURE,
+        luxtronik_key=LC.C0136_FLOW_IN_CIRCUIT3_TARGET_TEMPERATURE,
         device_key=DeviceKey.heating,
         entity_category=None,
         state_class=SensorStateClass.MEASUREMENT,

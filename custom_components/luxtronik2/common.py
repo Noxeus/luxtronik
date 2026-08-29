@@ -395,10 +395,10 @@ def _derive_operation_mode(value: Any, coordinator: LuxtronikCoordinatorData) ->
             T_in = get_sensor_data(coordinator, LC.C0010_FLOW_IN_TEMPERATURE)
             T_out = get_sensor_data(coordinator, LC.C0011_FLOW_OUT_TEMPERATURE)
             T_heat_in = get_sensor_data(
-                coordinator, LC.C0204_HEAT_SOURCE_INPUT_TEMPERATURE
+                coordinator, LC.C0019_HEAT_SOURCE_INPUT_TEMPERATURE
             )
             T_heat_out = get_sensor_data(
-                coordinator, LC.C0024_HEAT_SOURCE_OUTPUT_TEMPERATURE
+                coordinator, LC.C0020_HEAT_SOURCE_OUTPUT_TEMPERATURE
             )
             Flow_WQ = get_sensor_data(coordinator, LC.C0173_HEAT_SOURCE_FLOW_RATE)
             Pump = get_sensor_data(coordinator, LC.C0043_PUMP_FLOW)

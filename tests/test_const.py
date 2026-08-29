@@ -305,15 +305,18 @@ class TestLuxParameterMatchesLibrary:
 class TestLuxCalculationMatchesLibrary:
     """Guard LuxCalculation against drifting from the library + our overrides.
 
-    Every member must name a calculation that actually exists once the
-    overrides are applied, because lookup is by name (Calculations._lookup,
-    and key_exists() in common.py): a member naming a register nobody
-    registered fails silently - the entity is simply never created.
+    Each member must follow `C<4-digit-index>_<description> =
+    "calculations.<name>"`, where <index> and <name> resolve to the *same*
+    entry in Calculations.calculations once the overrides are applied.
 
-    Matched by name, deliberately not by the C-number: a member's digits are
-    a label, not always the register index (C0018-C0024, C0034 and C0204 all
-    carry a prefix that differs from the index they read).
+    Both halves catch a real bug. The name is what lookup actually matches on
+    (Calculations._lookup, and key_exists() in common.py), so a name nobody
+    registered fails silently - the entity is simply never created. The index
+    is what base.py slices into the Luxtronik_Key state attribute, so a wrong
+    one advertises a register the entity does not read.
     """
+
+    NAME_PATTERN = re.compile(r"^C(\d{4})_[A-Z0-9]+(?:_[A-Z0-9]+)*$")
 
     # 0.3.14 stops at index 259, but Calculations.parse() creates an
     # Unknown_Calculation_<index> entry for every further index the controller
@@ -328,16 +331,25 @@ class TestLuxCalculationMatchesLibrary:
         index = int(match.group(1))
         return index if index > max(Calculations.calculations) else None
 
-    def test_members_resolve_to_a_registered_calculation(self):
+    def test_members_match_library_and_overrides(self):
         update_Luxtronik_Parameters()
         registered = {
-            calculation.name for calculation in Calculations.calculations.values()
+            calculation.name: index
+            for index, calculation in Calculations.calculations.items()
         }
 
         problems = []
         for member in LuxCalculation:
             if member is LuxCalculation.UNSET:
                 continue
+
+            match = self.NAME_PATTERN.match(member.name)
+            if match is None:
+                problems.append(
+                    f"{member.name}: name doesn't match C<NNNN>_<DESCRIPTION>"
+                )
+                continue
+
             if not member.value.startswith("calculations."):
                 problems.append(
                     f"{member.name}: value {member.value!r} missing "
@@ -346,15 +358,22 @@ class TestLuxCalculationMatchesLibrary:
                 continue
 
             raw_name = member.value.removeprefix("calculations.")
-            if raw_name in registered:
-                continue
-            if self._auto_created_index(raw_name) is not None:
+            auto_created = self._auto_created_index(raw_name)
+            index = registered.get(raw_name, auto_created)
+            if index is None:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is not registered in "
+                    "Calculations.calculations (library or lux_overrides)"
+                )
                 continue
 
-            problems.append(
-                f"{member.name}: {raw_name!r} is not registered in "
-                "Calculations.calculations (library or lux_overrides)"
-            )
+            label = int(match.group(1))
+            if label != index:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is calculation {index}, but the "
+                    f"member is labelled {label} - base.py reports that label as "
+                    "the register number"
+                )
 
         assert not problems, "LuxCalculation / library mismatches:\n" + "\n".join(
             problems

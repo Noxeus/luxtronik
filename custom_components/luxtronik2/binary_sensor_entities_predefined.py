@@ -61,7 +61,7 @@ BINARY_SENSORS: list[LuxtronikBinarySensorEntityDescription] = [
     ),
     LuxtronikBinarySensorEntityDescription(
         key=SensorKey.MOTOR_PROTECTION,
-        luxtronik_key=LC.C0034_MOTOR_PROTECTION,
+        luxtronik_key=LC.C0033_MOTOR_PROTECTION,
         visibility=LV.V0045_MOTOR_PROTECTION,
     ),
     # endregion Main heatpump
