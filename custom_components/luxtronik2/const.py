@@ -802,7 +802,7 @@ class LuxVisibility(StrEnum):
     V0324_ADDITIONAL_HEAT_GENERATOR_AMOUNT_COUNTER = (
         "visibilities.ID_Visi_Waermemenge_ZWE"
     )
-    V0357_ELECTRICAL_POWER_LIMITATION_SWITCH = "visibilities.Unknown_Parameter_357"
+    V0357_ELECTRICAL_POWER_LIMITATION_SWITCH = "visibilities.Unknown_Visibility_357"
 
 
 # endregion visibilities

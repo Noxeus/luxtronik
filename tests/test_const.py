@@ -36,6 +36,7 @@ from custom_components.luxtronik2.const import (
 from custom_components.luxtronik2.coordinator import LuxtronikCoordinator
 from custom_components.luxtronik2.lux_overrides import (
     isolate_instance_data,
+    name_unknown_visibilities_correctly,
     update_Luxtronik_Parameters,
 )
 
@@ -441,10 +442,11 @@ class TestLuxVisibilityMatchesLibrary:
 
     NAME_PATTERN = re.compile(r"^V(\d{4})[A-Z]?_[A-Z0-9]+(?:_[A-Z0-9]+)*$")
 
-    # Visibilities.parse() creates an entry for every index past its table -
-    # named Unknown_Parameter_<index>, not Unknown_Visibility_<index>, which
-    # is 0.3.14's own quirk and the reason V0357 reads the way it does.
-    AUTO_CREATED_PATTERN = re.compile(r"^Unknown_Parameter_(\d+)$")
+    # Visibilities.parse() creates an entry for every index past its table.
+    # 0.3.14 names those Unknown_Parameter_<index> - a copy-paste from
+    # parameters.py - which lux_overrides rewrites to the prefix the library
+    # already uses inside its own table.
+    AUTO_CREATED_PATTERN = re.compile(r"^Unknown_Visibility_(\d+)$")
 
     # Synthetic gates that name no register at all: _special_visibility()
     # answers them before get_value() is ever reached.
@@ -505,10 +507,11 @@ class TestLuxVisibilityMatchesLibrary:
 
     def test_the_auto_created_names_are_really_created_by_parse(self):
         """V0357 (electrical power limitation) sits past the table: 64 of the
-        80 diagnostics dumps carry it as Unknown_Parameter_357, so the name is
-        the one 0.3.14 generates, not a typo for Unknown_Visibility_357."""
+        80 diagnostics dumps carry that index, generated rather than declared.
+        The name asserted here is the one lux_overrides installs."""
         update_Luxtronik_Parameters()
         isolate_instance_data()  # keep parse() off the class-level dict
+        name_unknown_visibilities_correctly()
 
         auto_created = {
             member: index

@@ -463,6 +463,51 @@ def record_parsed_block_lengths():
     _PARSE_COUNTS_RECORDED = True
 
 
+_UNKNOWN_VISIBILITY_NAMES_FIXED = False
+
+_UNKNOWN_PARAMETER_PREFIX = "Unknown_Parameter_"
+_UNKNOWN_VISIBILITY_PREFIX = "Unknown_Visibility_"
+
+
+def name_unknown_visibilities_correctly():
+    """Patch ``parse()`` so generated visibility names say "Visibility".
+
+    ``Visibilities.parse()`` names every index past its table
+    ``Unknown_Parameter_<index>`` - a copy-paste from ``parameters.py``, where
+    that prefix is right.  The same library already uses
+    ``Unknown_Visibility_<index>`` for the placeholders *inside* its table,
+    and upstream main uses it for the generated ones too, so the parameter
+    prefix is simply wrong here.
+
+    Not cosmetic: controllers routinely return 400 visibilities (46 of the 80
+    diagnostics dumps do), so every index from 355 up is generated on most
+    units, and a ``LuxVisibility`` member pointing at one has to spell the
+    placeholder exactly or its gate silently falls open.  Renaming here means
+    const.py can name them the way the rest of the table is named, and the
+    eventual library bump becomes a no-op for those keys.
+    """
+    # No lock needed: called only from synchronous code path (no await),
+    # so the event loop cannot preempt between the guard check and flag set.
+    global _UNKNOWN_VISIBILITY_NAMES_FIXED
+    if _UNKNOWN_VISIBILITY_NAMES_FIXED:
+        return
+
+    _orig_parse = Visibilities.parse
+
+    def _parse(self, raw_data, _orig_parse=_orig_parse):
+        result = _orig_parse(self, raw_data)
+        for visibility in self.visibilities.values():
+            if visibility.name.startswith(_UNKNOWN_PARAMETER_PREFIX):
+                visibility.name = (
+                    _UNKNOWN_VISIBILITY_PREFIX
+                    + visibility.name.removeprefix(_UNKNOWN_PARAMETER_PREFIX)
+                )
+        return result
+
+    Visibilities.parse = _parse
+    _UNKNOWN_VISIBILITY_NAMES_FIXED = True
+
+
 def warn_on_unknown_selection_codes():
     """Log once when the controller reports a code this integration cannot decode.
 

@@ -26,6 +26,7 @@ from custom_components.luxtronik2.const import (
     WRITABLE_PARAMETER_PREFIXES,
     LuxCalculation as LC,
     LuxSwitchoffReason,
+    LuxVisibility as LV,
 )
 from custom_components.luxtronik2.model import LuxtronikCoordinatorData
 
@@ -710,3 +711,71 @@ class TestCalculationNamesFollowUpstreamMain:
             LC.C0243_CIRCULATION_PUMP_DELTA,
         ):
             assert calculations.get(str(key).split(".", 1)[1]) is not None
+
+
+class TestUnknownVisibilityNames:
+    """0.3.14's Visibilities.parse() names every index past its table
+    `Unknown_Parameter_<index>` - a copy-paste from parameters.py, where that
+    prefix is right. Inside the table the same library already uses
+    `Unknown_Visibility_<index>` (30 such entries), and upstream main uses it
+    for the generated ones too, so the parameter prefix is simply wrong.
+
+    It matters beyond tidiness: controllers routinely return 400 visibilities
+    (46 of the 80 diagnostics dumps do), so indices 355+ are generated on most
+    units, and a key like V0357 has to spell the placeholder exactly.
+    """
+
+    LONG_BLOCK = [0] * 401
+
+    def _parsed(self):
+        lux_overrides.update_Luxtronik_Parameters()
+        lux_overrides.isolate_instance_data()
+        lux_overrides.name_unknown_visibilities_correctly()
+        visibilities = Visibilities()
+        visibilities.parse(self.LONG_BLOCK)
+        return visibilities
+
+    def test_generated_names_use_the_visibility_prefix(self):
+        visibilities = self._parsed()
+        assert visibilities.visibilities[357].name == "Unknown_Visibility_357"
+        assert visibilities.get("Unknown_Visibility_357") is not None
+
+    def test_no_generated_name_keeps_the_parameter_prefix(self):
+        visibilities = self._parsed()
+        stale = [
+            index
+            for index, visibility in visibilities.visibilities.items()
+            if visibility.name.startswith("Unknown_Parameter_")
+        ]
+        assert not stale
+
+    def test_named_and_in_table_placeholders_are_untouched(self):
+        """Only the generated names are rewritten - the library's own
+        Unknown_Visibility_* entries and every real name stay as they are."""
+        visibilities = self._parsed()
+        assert visibilities.visibilities[5].name == "ID_Visi_Kuhlung"
+        assert visibilities.visibilities[325].name == "Unknown_Visibility_325"
+
+    def test_parameters_keep_their_own_prefix(self):
+        """Unknown_Parameter_<index> is correct for parameters; the rename
+        must not follow the patch onto the other two classes."""
+        lux_overrides.update_Luxtronik_Parameters()
+        lux_overrides.isolate_instance_data()
+        lux_overrides.name_unknown_visibilities_correctly()
+        parameters = Parameters()
+        parameters.parse([0] * 1200)
+        assert parameters.parameters[1150].name == "Unknown_Parameter_1150"
+
+    def test_applying_twice_does_not_stack_the_patch(self):
+        lux_overrides.name_unknown_visibilities_correctly()
+        lux_overrides.name_unknown_visibilities_correctly()
+        visibilities = self._parsed()
+        assert visibilities.visibilities[357].name == "Unknown_Visibility_357"
+
+    def test_the_const_key_matches_what_parse_produces(self):
+        """V0357 is the one member naming a generated visibility."""
+        visibilities = self._parsed()
+        raw_name = LV.V0357_ELECTRICAL_POWER_LIMITATION_SWITCH.removeprefix(
+            "visibilities."
+        )
+        assert visibilities.get(raw_name) is not None

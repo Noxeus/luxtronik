@@ -47,6 +47,7 @@ from .const import (
 from .lux_helper import Luxtronik, get_manufacturer_by_model
 from .lux_overrides import (
     isolate_instance_data,
+    name_unknown_visibilities_correctly,
     record_parsed_block_lengths,
     update_Luxtronik_HeatpumpCodes,
     update_Luxtronik_Parameters,
@@ -998,12 +999,13 @@ async def connect_and_get_coordinator(
         update_Luxtronik_Parameters()
         isolate_instance_data()
         record_parsed_block_lengths()
+        name_unknown_visibilities_correctly()
         warn_on_unknown_selection_codes()
         _OVERRIDES_APPLIED = True
         LOGGER.info(
             "Library overrides applied (HeatpumpCodes, SwitchoffCodes, Parameters, "
             "instance data isolation, parsed block length recording, unknown "
-            "selection code warning)."
+            "visibility naming, unknown selection code warning)."
         )
 
     config_data: dict[str, Any] = dict(
