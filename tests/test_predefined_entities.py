@@ -5,13 +5,17 @@ from __future__ import annotations
 from collections.abc import Iterator
 import importlib
 import pkgutil
+from unittest.mock import patch
 
 from packaging.version import Version
 
+from conftest import make_coordinator_data
 import custom_components.luxtronik2 as luxtronik2
 from custom_components.luxtronik2.binary_sensor_entities_predefined import (
     BINARY_SENSORS,
 )
+from custom_components.luxtronik2.const import LuxParameter, LuxVisibility
+from custom_components.luxtronik2.coordinator import LuxtronikCoordinator
 from custom_components.luxtronik2.date_entities_predefined import CALENDAR_ENTITIES
 from custom_components.luxtronik2.model import LuxtronikEntityDescription
 from custom_components.luxtronik2.number_entities_predefined import NUMBER_SENSORS
@@ -176,5 +180,61 @@ class TestFirmwareVersionFields:
             for descr in descriptions
             for name in ("min_firmware_version", "max_firmware_version")
             if (value := getattr(descr, name, None)) is not None
+        ]
+        assert offenders == []
+
+
+class TestVisibilityGates:
+    """Every gate must survive the value its register actually reports."""
+
+    def test_no_parameter_gate_breaks_on_a_decoded_value(self):
+        """A parameter used as a visibility gate may decode to a name.
+
+        `lux_overrides` gives selection datatypes to parameters as their codes
+        become known, and such a register then reads "plus_minus" rather than
+        1. A gate that assumes a number raises `TypeError` from the entity
+        constructor, which aborts `async_setup_entry` for the whole platform:
+        that is how #773 lost every number entity, not just the three gated
+        ones. Visibility flags themselves are always numeric; parameters are
+        the ones that can change type under us, so they are what this sweeps.
+        """
+        gated = [
+            descr
+            for descr in _all_descriptions()
+            if isinstance(descr.visibility, LuxParameter)
+        ]
+        # Guard the guard: no parameter gates left means nothing was checked.
+        assert gated
+
+        coord = object.__new__(LuxtronikCoordinator)
+        coord.data = make_coordinator_data(
+            parameters={"ID_Einst_SmartGrid": "plus_minus"}
+        )
+        with patch.object(LuxtronikCoordinator, "get_value", return_value="plus_minus"):
+            for descr in gated:
+                assert isinstance(coord.entity_visible(descr), bool), descr.key
+
+    def test_no_description_pairs_a_special_gate_with_a_formula(self):
+        """`_special_visibility` answers before `visibility_formula` is read.
+
+        That early return is deliberate - the special gates exist precisely
+        because their register cannot be read at face value - but it means a
+        formula written against one of those keys would be silently ignored.
+        Nothing does that today; this fails the moment something starts to.
+        """
+        offenders = [
+            (type(descr).__name__, descr.key)
+            for descr in _all_descriptions()
+            if descr.visibility_formula is not None
+            and descr.visibility
+            in (
+                LuxVisibility.V0038_SOLAR_COLLECTOR,
+                LuxVisibility.V0039_SOLAR_BUFFER,
+                LuxVisibility.V0250_SOLAR,
+                LuxVisibility.V0059_DHW_CIRCULATION_PUMP,
+                LuxVisibility.V0059A_DHW_CHARGING_PUMP,
+                LuxVisibility.V0005_COOLING,
+                LuxParameter.P1030_SMART_GRID_SWITCH,
+            )
         ]
         assert offenders == []

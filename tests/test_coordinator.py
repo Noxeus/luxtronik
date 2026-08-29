@@ -562,6 +562,40 @@ class TestEntityVisible:
         desc.visibility = LV.V0059A_DHW_CHARGING_PUMP
         assert coord.entity_visible(desc) is True
 
+    def test_smart_grid_visibility_reads_the_mode(self):
+        """P1030 decodes to a mode name, not a flag, so it cannot be compared
+        to 0 - doing so raised and took the whole number platform down. #773
+        """
+        coord = _make_coordinator(parameters={"ID_Einst_SmartGrid": "plus_minus"})
+        desc = LuxtronikEntityDescription(
+            key="test",
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_visible(desc) is True
+
+    def test_smart_grid_visibility_off(self):
+        """The same gate entity_active applies, so the two cannot disagree."""
+        coord = _make_coordinator(parameters={"ID_Einst_SmartGrid": "off"})
+        desc = LuxtronikEntityDescription(
+            key="test",
+            visibility=LP.P1030_SMART_GRID_SWITCH,
+        )
+        assert coord.entity_visible(desc) is False
+
+    def test_non_numeric_visibility_value_is_visible(self):
+        """A visibility register a datatype decodes to a name must not raise.
+
+        Nothing knows what such a value means, so it falls open the same way
+        an unreadable register does - an entity enabled by default is a far
+        smaller failure than a platform that does not load at all. #773
+        """
+        coord = _make_coordinator_direct()
+        coord.get_value = MagicMock(return_value="plus_minus")
+        desc = MagicMock(spec=LuxtronikEntityDescription)
+        desc.visibility = LV.V0024_FLOW_OUT_TEMPERATURE_EXTERNAL
+        desc.visibility_formula = None
+        assert coord.entity_visible(desc) is True
+
     def test_visibility_none_returns_true(self):
         coord = _make_coordinator_direct()
         coord.get_value = MagicMock(return_value=None)
@@ -763,6 +797,22 @@ class TestEntityActive:
         desc.visibility = LP.P0042_MIXING_CIRCUIT1_TYPE
         desc.device_key = DeviceKey.heatpump
         assert coord.entity_active(desc) is False
+
+    def test_mixing_circuit_cooling_as_a_decoded_name(self):
+        """The type register may gain a datatype and decode to a name.
+
+        This comparison never raises the way the visibility gate did - it
+        would quietly evaluate False and take the three mixing-circuit
+        entities away from every affected user, which is a worse failure
+        than a crash because nothing reports it. #773
+        """
+        coord = _make_coordinator_direct()
+        coord._is_version_not_compatible = MagicMock(return_value=False)
+        coord.get_value = MagicMock(return_value=LuxMkTypes.cooling.name)
+        desc = MagicMock(spec=LuxtronikEntityDescription)
+        desc.visibility = LP.P0042_MIXING_CIRCUIT1_TYPE
+        desc.device_key = DeviceKey.heatpump
+        assert coord.entity_active(desc) is True
 
     def test_smart_grid_offsets_inactive_when_switched_off(self):
         """P1030 = 0 means the Smart Grid submenu does not exist on the
@@ -1761,6 +1811,15 @@ class TestDetectionMethods:
             parameters={
                 "ID_Einst_MK1Typ_akt": 3,  # LuxMkTypes.cooling.value
             },
+        )
+        assert coord.detect_cooling_present() is True
+
+    def test_detect_cooling_present_from_a_decoded_name(self):
+        """Same register, bigger blast radius: this one gates has_cooling,
+        so a silently False comparison removes the whole cooling device.
+        """
+        coord = _make_coordinator(
+            parameters={"ID_Einst_MK1Typ_akt": LuxMkTypes.heating_cooling.name},
         )
         assert coord.detect_cooling_present() is True
 

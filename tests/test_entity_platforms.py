@@ -397,7 +397,7 @@ class TestSmartGridOffsetEntities:
     }
 
     @staticmethod
-    def _coordinator(smart_grid: int):
+    def _coordinator(smart_grid: int | str):
         from custom_components.luxtronik2.coordinator import LuxtronikCoordinator
 
         data = make_coordinator_data(
@@ -446,6 +446,19 @@ class TestSmartGridOffsetEntities:
     async def test_created_when_smart_grid_is_on(self):
         keys = await self._setup_keys(self._coordinator(1))
         assert keys >= self._KEYS
+
+    @pytest.mark.asyncio
+    async def test_created_when_the_mode_reads_as_a_decoded_name(self):
+        """A real unit reports the name, not the code.
+
+        `SmartGridMode` decodes P1030, so `get_value` returns "plus_minus"
+        rather than 1. Comparing that to 0 raised inside the entity
+        constructor and aborted the setup of every number entity, not just
+        the three gated ones. #773
+        """
+        keys = await self._setup_keys(self._coordinator("plus_minus"))
+        assert keys >= self._KEYS
+        assert SK.DHW_TARGET_TEMPERATURE in keys
 
     @pytest.mark.asyncio
     async def test_not_created_when_smart_grid_is_off(self):
