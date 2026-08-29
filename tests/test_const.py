@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 import re
 
+from luxtronik.calculations import Calculations
 from luxtronik.parameters import Parameters
 
 from custom_components.luxtronik2.const import (
@@ -30,7 +31,10 @@ from custom_components.luxtronik2.const import (
     LuxVisibility,
     SensorKey,
 )
-from custom_components.luxtronik2.lux_overrides import update_Luxtronik_Parameters
+from custom_components.luxtronik2.lux_overrides import (
+    isolate_instance_data,
+    update_Luxtronik_Parameters,
+)
 
 
 class TestConstants:
@@ -296,3 +300,105 @@ class TestLuxParameterMatchesLibrary:
             f"Parameters {sorted(now_present)} are now registered - remove them "
             "from KNOWN_MISSING_PARAMETERS so the main consistency test verifies them"
         )
+
+
+class TestLuxCalculationMatchesLibrary:
+    """Guard LuxCalculation against drifting from the library + our overrides.
+
+    Every member must name a calculation that actually exists once the
+    overrides are applied, because lookup is by name (Calculations._lookup,
+    and key_exists() in common.py): a member naming a register nobody
+    registered fails silently - the entity is simply never created.
+
+    Matched by name, deliberately not by the C-number: a member's digits are
+    a label, not always the register index (C0018-C0024, C0034 and C0204 all
+    carry a prefix that differs from the index they read).
+    """
+
+    # 0.3.14 stops at index 259, but Calculations.parse() creates an
+    # Unknown_Calculation_<index> entry for every further index the controller
+    # actually returns - so a name past the table is legitimate, and is
+    # verified against parse() below rather than exempted blindly.
+    AUTO_CREATED_PATTERN = re.compile(r"^Unknown_Calculation_(\d+)$")
+
+    def _auto_created_index(self, raw_name: str) -> int | None:
+        match = self.AUTO_CREATED_PATTERN.match(raw_name)
+        if match is None:
+            return None
+        index = int(match.group(1))
+        return index if index > max(Calculations.calculations) else None
+
+    def test_members_resolve_to_a_registered_calculation(self):
+        update_Luxtronik_Parameters()
+        registered = {
+            calculation.name for calculation in Calculations.calculations.values()
+        }
+
+        problems = []
+        for member in LuxCalculation:
+            if member is LuxCalculation.UNSET:
+                continue
+            if not member.value.startswith("calculations."):
+                problems.append(
+                    f"{member.name}: value {member.value!r} missing "
+                    "'calculations.' prefix"
+                )
+                continue
+
+            raw_name = member.value.removeprefix("calculations.")
+            if raw_name in registered:
+                continue
+            if self._auto_created_index(raw_name) is not None:
+                continue
+
+            problems.append(
+                f"{member.name}: {raw_name!r} is not registered in "
+                "Calculations.calculations (library or lux_overrides)"
+            )
+
+        assert not problems, "LuxCalculation / library mismatches:\n" + "\n".join(
+            problems
+        )
+
+    def _auto_created_members(self) -> dict[LuxCalculation, int]:
+        members = {}
+        for member in LuxCalculation:
+            if member is LuxCalculation.UNSET:
+                continue
+            index = self._auto_created_index(member.value.removeprefix("calculations."))
+            if index is not None:
+                members[member] = index
+        return members
+
+    def test_the_auto_created_names_are_really_created_by_parse(self):
+        """The exemption above is only sound because parse() registers those
+        indices. C0268 (current power consumption, and the denominator of both
+        instantaneous COP sensors) is the one relying on it: absent from the
+        static table, present on every controller that returns enough
+        registers - 15 of the 28 units in the diagnostics corpus do, with real
+        wattage."""
+        update_Luxtronik_Parameters()
+        isolate_instance_data()  # keep parse() off the class-level dict
+
+        auto_created = self._auto_created_members()
+        assert auto_created, "no auto-created members left - drop the exemption"
+
+        calculations = Calculations()
+        calculations.parse([0] * (max(auto_created.values()) + 1))
+        for member in auto_created:
+            raw_name = member.value.removeprefix("calculations.")
+            assert calculations.get(raw_name) is not None, (
+                f"{member.name}: parse() did not create {raw_name!r}"
+            )
+
+    def test_a_short_block_leaves_the_auto_created_names_absent(self):
+        """The other half of the same rule: those registers exist only on the
+        controllers that return them, which is what key_exists() reports on."""
+        update_Luxtronik_Parameters()
+        isolate_instance_data()
+
+        calculations = Calculations()
+        calculations.parse([0] * (max(Calculations.calculations) + 1))
+        for member in self._auto_created_members():
+            raw_name = member.value.removeprefix("calculations.")
+            assert calculations.get(raw_name) is None
