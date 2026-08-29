@@ -567,6 +567,28 @@ SENSORS: list[descr] = [
         factor=0.1,
         entity_registry_enabled_default=False,
     ),
+    # The two pump PWM signals (#510). Both registers are typed Percent2 in
+    # the library, a pass-through: the controller already sends a percentage,
+    # so no factor is applied. Present on every controller in the diagnostics
+    # corpus (V1.73 - V3.92.3), hence no visibility flag and no firmware gate
+    # - key_exists() in async_setup_entry is the presence check. Two V3.8x
+    # units report calc 183 above 100 (390, 708) against 0-100 everywhere
+    # else; unscaled is what the register says, and a live comparison with
+    # the controller display is what would settle a per-model scale.
+    descr(
+        key=SensorKey.PUMP_PWM,
+        luxtronik_key=LC.C0183_PUMP_PWM,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        entity_registry_enabled_default=False,
+    ),
+    descr(
+        key=SensorKey.CIRCULATION_PUMP_PWM,
+        luxtronik_key=LC.C0241_CIRCULATION_PUMP_PWM,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        entity_registry_enabled_default=False,
+    ),
     descr(
         key=SensorKey.CIRCULATION_PUMP_DELTA_TARGET,
         luxtronik_key=LC.C0242_CIRCULATION_PUMP_DELTA_TARGET,

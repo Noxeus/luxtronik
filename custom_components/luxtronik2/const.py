@@ -717,6 +717,7 @@ class LuxCalculation(StrEnum):
     C0180_HIGH_PRESSURE = "calculations.ID_WEB_LIN_HD"
     C0181_LOW_PRESSURE = "calculations.ID_WEB_LIN_ND"
     C0182_COMPRESSOR_HEATER = "calculations.ID_WEB_LIN_VDH_out"
+    C0183_PUMP_PWM = "calculations.ID_WEB_HZIO_PWM"
     C0185_EVU2 = "calculations.ID_WEB_HZIO_EVU2"
     # C0187_CURRENT_OUTPUT: Final = "calculations.ID_WEB_SEC_Qh_Soll"
     # C0188_CURRENT_OUTPUT: Final = "calculations.ID_WEB_SEC_Qh_Ist"
@@ -728,7 +729,8 @@ class LuxCalculation(StrEnum):
     # 239: Kelvin("VBO_Temp_Spread_Soll"), / 10, measurement, delta - ait_hup_vbo_calculated
     C0240_PUMP_FLOW_DELTA = "calculations.Unknown_Calculation_240"
     # 240: Kelvin("VBO_Temp_Spread_Ist"), / 10, measurement, delta - ait_vbo_delta
-    # 241: Percent2("HUP_PWM"),
+    C0241_CIRCULATION_PUMP_PWM = "calculations.Circulation_Pump"
+    # 241: Percent2("HUP_PWM") in older library revisions - the same register.
     C0242_CIRCULATION_PUMP_DELTA_TARGET = "calculations.Unknown_Calculation_242"
     # 242: Kelvin("HUP_Temp_Spread_Soll"), / 10, measurement, delta - ait_hup_delta_calculated
     C0243_CIRCULATION_PUMP_DELTA = "calculations.Unknown_Calculation_243"
@@ -868,6 +870,8 @@ class SensorKey(StrEnum):
     PUMP_FLOW_DELTA = "pump_flow_delta"
     CIRCULATION_PUMP_DELTA_TARGET = "circulation_pump_delta_target"
     CIRCULATION_PUMP_DELTA = "circulation_pump_delta"
+    PUMP_PWM = "pump_pwm"
+    CIRCULATION_PUMP_PWM = "circulation_pump_pwm"
     HEAT_SOURCE_OUTPUT_TEMPERATURE = "heat_source_output_temperature"
     ERROR_REASON = "error_reason"
     FLOW_IN_TEMPERATURE = "flow_in_temperature"

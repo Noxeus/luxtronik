@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     CONF_HOST,
     CONF_PORT,
@@ -1131,3 +1131,49 @@ class TestAuxHeaterAmountScaling:
             firmware_series=0,
         )
         assert value == 14714.0
+
+
+class TestPumpPwmSensors:
+    """The two pump PWM registers requested in discussion #510: calc 183
+    (ID_WEB_HZIO_PWM, the VBO / heat source pump) and calc 241
+    (Circulation_Pump, the HUP / heating circuit pump). Both are typed
+    Percent2 in the pinned library, which is a pass-through - the register
+    is already a percentage, so no `factor` may be applied.
+
+    Across the diagnostics corpus both registers are present on every
+    controller (V1.73 through V3.92.3), which is why neither carries a
+    visibility flag or a firmware gate: key_exists() in async_setup_entry is
+    the whole presence check. Two V3.8x units report calc 183 above 100
+    (390 and 708) where every other unit stays within 0-100; that is left
+    unscaled here rather than guessed at, so those controllers read high
+    until a live comparison against the controller display settles it.
+    """
+
+    PWM_KEYS = (SensorKey.PUMP_PWM, SensorKey.CIRCULATION_PUMP_PWM)
+
+    def test_pwm_sensors_are_unscaled_percentages(self):
+        for key in self.PWM_KEYS:
+            description = next(d for d in SENSORS if d.key == key)
+            assert description.native_unit_of_measurement == PERCENTAGE
+            assert description.state_class == SensorStateClass.MEASUREMENT
+            assert description.factor is None
+            assert description.entity_registry_enabled_default is False
+            assert description.device_key == DeviceKey.heatpump
+
+    def test_pwm_sensors_are_not_gated_on_a_visibility_flag(self):
+        for key in self.PWM_KEYS:
+            description = next(d for d in SENSORS if d.key == key)
+            assert description.visibility == LuxVisibility.UNSET
+            assert description.min_firmware_version_minor is None
+            assert description.max_firmware_version_minor is None
+
+    def test_pwm_value_is_the_raw_register(self):
+        """46 % on #510's HUP, 100 % on the VBO of the same dump family."""
+        _assert_raw_converts_to(SensorKey.PUMP_PWM, 100, 100)
+        _assert_raw_converts_to(SensorKey.CIRCULATION_PUMP_PWM, 46, 46)
+
+    def test_pwm_sensors_read_the_expected_registers(self):
+        vbo = next(d for d in SENSORS if d.key == SensorKey.PUMP_PWM)
+        hup = next(d for d in SENSORS if d.key == SensorKey.CIRCULATION_PUMP_PWM)
+        assert vbo.luxtronik_key == "calculations.ID_WEB_HZIO_PWM"
+        assert hup.luxtronik_key == "calculations.Circulation_Pump"

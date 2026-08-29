@@ -982,11 +982,17 @@
             "pump_flow_delta": {
                 "name": "Soleumwälzpumpe Delta"
             },
+            "pump_pwm": {
+                "name": "Soleumwälzpumpe PWM"
+            },
             "circulation_pump_delta_target": {
                 "name": "Umwälzpumpe Delta Ziel"
             },
             "circulation_pump_delta": {
                 "name": "Umwälzpumpe Delta"
+            },
+            "circulation_pump_pwm": {
+                "name": "Umwälzpumpe PWM"
             },
             "cooling_energy_input": {
                 "name": "Eingesetzte Energie Kühlung"
