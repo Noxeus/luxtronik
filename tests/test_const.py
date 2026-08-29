@@ -306,6 +306,14 @@ class TestLuxParameterMatchesLibrary:
         )
 
 
+# The highest index each library table *declares*. Snapshotted at import,
+# because parse() adds an entry for every index a controller returns beyond
+# it: one un-isolated long parse anywhere in the process would raise these
+# and silently reclassify a generated register as a declared one.
+_LIBRARY_CALCULATION_MAX = max(Calculations.calculations)
+_LIBRARY_VISIBILITY_MAX = max(Visibilities.visibilities)
+
+
 class TestLuxCalculationMatchesLibrary:
     """Guard LuxCalculation against drifting from the library + our overrides.
 
@@ -333,7 +341,7 @@ class TestLuxCalculationMatchesLibrary:
         if match is None:
             return None
         index = int(match.group(1))
-        return index if index > max(Calculations.calculations) else None
+        return index if index > _LIBRARY_CALCULATION_MAX else None
 
     def test_members_match_library_and_overrides(self):
         update_Luxtronik_Parameters()
@@ -457,7 +465,7 @@ class TestLuxVisibilityMatchesLibrary:
         if match is None:
             return None
         index = int(match.group(1))
-        return index if index > max(Visibilities.visibilities) else None
+        return index if index > _LIBRARY_VISIBILITY_MAX else None
 
     def test_members_match_library_and_overrides(self):
         update_Luxtronik_Parameters()
@@ -486,6 +494,8 @@ class TestLuxVisibilityMatchesLibrary:
                 continue
 
             raw_name = member.value.removeprefix("visibilities.")
+            # A generated name is accepted on its shape alone here; that it is
+            # the name parse() really produces is what the next test proves.
             index = registered.get(raw_name, self._auto_created_index(raw_name))
             if index is None:
                 problems.append(

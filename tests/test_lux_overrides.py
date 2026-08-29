@@ -273,14 +273,24 @@ class TestFrequencyAutomatic:
 
 @pytest.fixture
 def restore_parse():
-    """record_parsed_block_lengths patches library classes process-wide."""
+    """Both parse patches are installed process-wide and guarded by a module
+    flag, so the flag has to travel with the function it guards: put parse
+    back without resetting the flag and every later call returns at the guard,
+    leaving the patch permanently uninstalled."""
     originals = {cls: cls.parse for cls in (Parameters, Calculations, Visibilities)}
-    flag = lux_overrides._PARSE_COUNTS_RECORDED
+    flags = (
+        lux_overrides._PARSE_COUNTS_RECORDED,
+        lux_overrides._UNKNOWN_VISIBILITY_NAMES_FIXED,
+    )
     lux_overrides._PARSE_COUNTS_RECORDED = False
+    lux_overrides._UNKNOWN_VISIBILITY_NAMES_FIXED = False
     yield
     for cls, parse in originals.items():
         cls.parse = parse
-    lux_overrides._PARSE_COUNTS_RECORDED = flag
+    (
+        lux_overrides._PARSE_COUNTS_RECORDED,
+        lux_overrides._UNKNOWN_VISIBILITY_NAMES_FIXED,
+    ) = flags
 
 
 class TestRecordParsedBlockLengths:
@@ -728,6 +738,7 @@ class TestUnknownVisibilityNames:
     LONG_BLOCK = [0] * 401
 
     def _parsed(self):
+        """Callers take the restore_parse fixture; this installs the patch."""
         lux_overrides.update_Luxtronik_Parameters()
         lux_overrides.isolate_instance_data()
         lux_overrides.name_unknown_visibilities_correctly()
@@ -735,12 +746,12 @@ class TestUnknownVisibilityNames:
         visibilities.parse(self.LONG_BLOCK)
         return visibilities
 
-    def test_generated_names_use_the_visibility_prefix(self):
+    def test_generated_names_use_the_visibility_prefix(self, restore_parse):
         visibilities = self._parsed()
         assert visibilities.visibilities[357].name == "Unknown_Visibility_357"
         assert visibilities.get("Unknown_Visibility_357") is not None
 
-    def test_no_generated_name_keeps_the_parameter_prefix(self):
+    def test_no_generated_name_keeps_the_parameter_prefix(self, restore_parse):
         visibilities = self._parsed()
         stale = [
             index
@@ -749,14 +760,14 @@ class TestUnknownVisibilityNames:
         ]
         assert not stale
 
-    def test_named_and_in_table_placeholders_are_untouched(self):
+    def test_named_and_in_table_placeholders_are_untouched(self, restore_parse):
         """Only the generated names are rewritten - the library's own
         Unknown_Visibility_* entries and every real name stay as they are."""
         visibilities = self._parsed()
         assert visibilities.visibilities[5].name == "ID_Visi_Kuhlung"
         assert visibilities.visibilities[325].name == "Unknown_Visibility_325"
 
-    def test_parameters_keep_their_own_prefix(self):
+    def test_parameters_keep_their_own_prefix(self, restore_parse):
         """Unknown_Parameter_<index> is correct for parameters; the rename
         must not follow the patch onto the other two classes."""
         lux_overrides.update_Luxtronik_Parameters()
@@ -766,13 +777,16 @@ class TestUnknownVisibilityNames:
         parameters.parse([0] * 1200)
         assert parameters.parameters[1150].name == "Unknown_Parameter_1150"
 
-    def test_applying_twice_does_not_stack_the_patch(self):
+    def test_applying_twice_installs_one_wrapper(self, restore_parse):
+        """Asserted on the patch, not on its output: the rewrite is
+        idempotent, so even a stacked wrapper produces the right name and
+        would never show up in a parsed value."""
         lux_overrides.name_unknown_visibilities_correctly()
+        installed = Visibilities.parse
         lux_overrides.name_unknown_visibilities_correctly()
-        visibilities = self._parsed()
-        assert visibilities.visibilities[357].name == "Unknown_Visibility_357"
+        assert Visibilities.parse is installed
 
-    def test_the_const_key_matches_what_parse_produces(self):
+    def test_the_const_key_matches_what_parse_produces(self, restore_parse):
         """V0357 is the one member naming a generated visibility."""
         visibilities = self._parsed()
         raw_name = LV.V0357_ELECTRICAL_POWER_LIMITATION_SWITCH.removeprefix(
