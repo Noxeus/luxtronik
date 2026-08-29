@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from datetime import timedelta
 import re
+from unittest.mock import MagicMock
 
 from luxtronik.calculations import Calculations
 from luxtronik.parameters import Parameters
+from luxtronik.visibilities import Visibilities
 
 from custom_components.luxtronik2.const import (
     CONF_UPDATE_INTERVAL,
@@ -31,6 +33,7 @@ from custom_components.luxtronik2.const import (
     LuxVisibility,
     SensorKey,
 )
+from custom_components.luxtronik2.coordinator import LuxtronikCoordinator
 from custom_components.luxtronik2.lux_overrides import (
     isolate_instance_data,
     update_Luxtronik_Parameters,
@@ -421,3 +424,143 @@ class TestLuxCalculationMatchesLibrary:
         for member in self._auto_created_members():
             raw_name = member.value.removeprefix("calculations.")
             assert calculations.get(raw_name) is None
+
+
+class TestLuxVisibilityMatchesLibrary:
+    """Guard LuxVisibility the way LuxParameter and LuxCalculation are guarded.
+
+    Each member must follow `V<4-digit-index>_<description> =
+    "visibilities.<name>"`, with <index> and <name> resolving to the same
+    entry in Visibilities.visibilities. The name is what get_value() matches
+    on, so a stale one makes entity_visible() log "Could not load visibility"
+    and fall open - every gated entity turns up enabled.
+
+    Two members are legitimately not register keys and are checked separately
+    below rather than exempted on trust.
+    """
+
+    NAME_PATTERN = re.compile(r"^V(\d{4})[A-Z]?_[A-Z0-9]+(?:_[A-Z0-9]+)*$")
+
+    # Visibilities.parse() creates an entry for every index past its table -
+    # named Unknown_Parameter_<index>, not Unknown_Visibility_<index>, which
+    # is 0.3.14's own quirk and the reason V0357 reads the way it does.
+    AUTO_CREATED_PATTERN = re.compile(r"^Unknown_Parameter_(\d+)$")
+
+    # Synthetic gates that name no register at all: _special_visibility()
+    # answers them before get_value() is ever reached.
+    SYNTHETIC = frozenset({LuxVisibility.V0059A_DHW_CHARGING_PUMP})
+
+    def _auto_created_index(self, raw_name: str) -> int | None:
+        match = self.AUTO_CREATED_PATTERN.match(raw_name)
+        if match is None:
+            return None
+        index = int(match.group(1))
+        return index if index > max(Visibilities.visibilities) else None
+
+    def test_members_match_library_and_overrides(self):
+        update_Luxtronik_Parameters()
+        registered = {
+            visibility.name: index
+            for index, visibility in Visibilities.visibilities.items()
+        }
+
+        problems = []
+        for member in LuxVisibility:
+            if member is LuxVisibility.UNSET or member in self.SYNTHETIC:
+                continue
+
+            match = self.NAME_PATTERN.match(member.name)
+            if match is None:
+                problems.append(
+                    f"{member.name}: name doesn't match V<NNNN>_<DESCRIPTION>"
+                )
+                continue
+
+            if not member.value.startswith("visibilities."):
+                problems.append(
+                    f"{member.name}: value {member.value!r} missing "
+                    "'visibilities.' prefix"
+                )
+                continue
+
+            raw_name = member.value.removeprefix("visibilities.")
+            index = registered.get(raw_name, self._auto_created_index(raw_name))
+            if index is None:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is not registered in "
+                    "Visibilities.visibilities"
+                )
+                continue
+
+            label = int(match.group(1))
+            if label != index:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is visibility {index}, but the "
+                    f"member is labelled {label}"
+                )
+
+        assert not problems, "LuxVisibility / library mismatches:\n" + "\n".join(
+            problems
+        )
+
+    def test_the_auto_created_names_are_really_created_by_parse(self):
+        """V0357 (electrical power limitation) sits past the table: 64 of the
+        80 diagnostics dumps carry it as Unknown_Parameter_357, so the name is
+        the one 0.3.14 generates, not a typo for Unknown_Visibility_357."""
+        update_Luxtronik_Parameters()
+        isolate_instance_data()  # keep parse() off the class-level dict
+
+        auto_created = {
+            member: index
+            for member in LuxVisibility
+            if member is not LuxVisibility.UNSET
+            and member not in self.SYNTHETIC
+            and (
+                index := self._auto_created_index(
+                    member.value.removeprefix("visibilities.")
+                )
+            )
+            is not None
+        }
+        assert auto_created, "no auto-created members left - drop the exemption"
+
+        visibilities = Visibilities()
+        visibilities.parse([0] * (max(auto_created.values()) + 1))
+        for member in auto_created:
+            raw_name = member.value.removeprefix("visibilities.")
+            assert visibilities.get(raw_name) is not None, (
+                f"{member.name}: parse() did not create {raw_name!r}"
+            )
+
+    def test_the_synthetic_members_are_answered_without_a_register(self):
+        """V0059A is not a register: the DHW charging pump is present exactly
+        when the recirculation pump is not, so _special_visibility() answers
+        it and get_value() is never reached. If that special case ever goes
+        away, the member becomes an unresolvable key instead of a gate."""
+        coordinator = MagicMock(spec=LuxtronikCoordinator)
+        for member in self.SYNTHETIC:
+            answer = LuxtronikCoordinator._special_visibility(coordinator, member)
+            assert answer is not None, (
+                f"{member.name} names no register and has no special case"
+            )
+
+
+class TestLuxEnumsHaveNoAliases:
+    """Two members sharing a value make the second one a Python enum *alias*:
+    `LuxVisibility(...)` and iteration both yield only the first, so the
+    second name silently resolves to the first member and never shows up in
+    any check that walks the enum. V0009_MK3 and V0211_MK3 were exactly that
+    - the same visibility defined twice, the correct label shadowed by the
+    wrong one, and every consistency test blind to it.
+    """
+
+    def test_no_member_is_an_alias_of_another(self):
+        problems = []
+        for enum in (LuxParameter, LuxCalculation, LuxVisibility):
+            for name, member in enum.__members__.items():
+                if name != member.name:
+                    problems.append(
+                        f"{enum.__name__}.{name} is an alias of {member.name} "
+                        f"- both are {member.value!r}"
+                    )
+        assert not problems, "duplicate enum values:\n" + "\n".join(problems)

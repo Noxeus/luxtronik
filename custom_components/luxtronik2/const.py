@@ -756,7 +756,6 @@ class LuxVisibility(StrEnum):
     V0005_COOLING = "visibilities.ID_Visi_Kuhlung"
     V0007_MK1 = "visibilities.ID_Visi_MK1"
     V0008_MK2 = "visibilities.ID_Visi_MK2"
-    V0009_MK3 = "visibilities.ID_Visi_MK3"
     V0023_FLOW_IN_TEMPERATURE = "visibilities.ID_Visi_Temp_Vorlauf"
     V0024_FLOW_OUT_TEMPERATURE_EXTERNAL = "visibilities.ID_Visi_Temp_Rucklauf"
     V0027_HOT_GAS_TEMPERATURE = "visibilities.ID_Visi_Temp_Heissgas"

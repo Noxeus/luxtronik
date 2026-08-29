@@ -361,7 +361,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         native_step=0.5,
         entity_category=EntityCategory.CONFIG,
         mode=NumberMode.BOX,
-        visibility=LV.V0009_MK3,
+        visibility=LV.V0211_MK3,
     ),
     LuxtronikNumberDescription(
         key=SensorKey.HEATING_CURVE_CIRCUIT3_PARALLEL_SHIFT_TEMPERATURE,
@@ -374,7 +374,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         native_step=0.5,
         entity_category=EntityCategory.CONFIG,
         mode=NumberMode.BOX,
-        visibility=LV.V0009_MK3,
+        visibility=LV.V0211_MK3,
     ),
     LuxtronikNumberDescription(
         key=SensorKey.HEATING_CURVE_CIRCUIT3_NIGHT_TEMPERATURE,
@@ -387,7 +387,7 @@ NUMBER_SENSORS: list[LuxtronikNumberDescription] = [
         native_step=0.5,
         entity_category=EntityCategory.CONFIG,
         mode=NumberMode.BOX,
-        visibility=LV.V0009_MK3,
+        visibility=LV.V0211_MK3,
     ),
     LuxtronikNumberDescription(
         key=SensorKey.HEATING_NIGHT_LOWERING_TO_TEMPERATURE,
