@@ -991,11 +991,17 @@
             "circulation_pump_delta": {
                 "name": "Cyrkulacyjna pompdelta"
             },
+            "circulation_pump_pwm": {
+                "name": "PWM pompy cyrkulacyjnej"
+            },
             "circulation_pump_delta_target": {
                 "name": "Cyrkulacyjna pompdelta docelowa"
             },
             "pump_flow_delta": {
                 "name": "Delta przepływu pompy"
+            },
+            "pump_pwm": {
+                "name": "PWM pompy"
             },
             "pump_flow_delta_target": {
                 "name": "Delta docelowa przepływu pompy"

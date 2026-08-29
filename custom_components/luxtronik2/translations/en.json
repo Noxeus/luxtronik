@@ -994,11 +994,17 @@
             "pump_flow_delta": {
                 "name": "Pump flow delta"
             },
+            "pump_pwm": {
+                "name": "Pump PWM"
+            },
             "circulation_pump_delta_target": {
                 "name": "Circulation pump delta target"
             },
             "circulation_pump_delta": {
                 "name": "Circulation pump delta"
+            },
+            "circulation_pump_pwm": {
+                "name": "Circulation pump PWM"
             },
             "ventilation_supply_air_temperature": {
                 "name": "Supply air temperature"

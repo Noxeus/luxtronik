@@ -994,11 +994,17 @@
             "pump_flow_delta": {
                 "name": "Rozdíl průtoku čerpadla"
             },
+            "pump_pwm": {
+                "name": "PWM čerpadla"
+            },
             "circulation_pump_delta_target": {
                 "name": "požadovaný rozdíl průtoku oběhového čerpadla"
             },
             "circulation_pump_delta": {
                 "name": "Rozdíl průtoku oběhového čerpadla"
+            },
+            "circulation_pump_pwm": {
+                "name": "PWM oběhového čerpadla"
             },
             "ventilation_supply_air_temperature": {
                 "name": "Teplota přiváděného vzduchu"

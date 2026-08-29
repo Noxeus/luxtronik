@@ -979,11 +979,17 @@
             "pump_flow_delta": {
                 "name": "Pekelcirculatiepomp Delta"
             },
+            "pump_pwm": {
+                "name": "Pekelcirculatiepomp PWM"
+            },
             "circulation_pump_delta_target": {
                 "name": "Circulatiepomp Delta doel"
             },
             "circulation_pump_delta": {
                 "name": "Circulatiepomp Delta"
+            },
+            "circulation_pump_pwm": {
+                "name": "Circulatiepomp PWM"
             },
             "cooling_energy_input": {
                 "name": "Gebruikte energie koeling"

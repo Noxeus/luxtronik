@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from datetime import timedelta
 import re
+from unittest.mock import MagicMock
 
+from luxtronik.calculations import Calculations
 from luxtronik.parameters import Parameters
+from luxtronik.visibilities import Visibilities
 
 from custom_components.luxtronik2.const import (
     CONF_UPDATE_INTERVAL,
@@ -30,7 +33,12 @@ from custom_components.luxtronik2.const import (
     LuxVisibility,
     SensorKey,
 )
-from custom_components.luxtronik2.lux_overrides import update_Luxtronik_Parameters
+from custom_components.luxtronik2.coordinator import LuxtronikCoordinator
+from custom_components.luxtronik2.lux_overrides import (
+    isolate_instance_data,
+    name_unknown_visibilities_correctly,
+    update_Luxtronik_Parameters,
+)
 
 
 class TestConstants:
@@ -296,3 +304,276 @@ class TestLuxParameterMatchesLibrary:
             f"Parameters {sorted(now_present)} are now registered - remove them "
             "from KNOWN_MISSING_PARAMETERS so the main consistency test verifies them"
         )
+
+
+# The highest index each library table *declares*. Snapshotted at import,
+# because parse() adds an entry for every index a controller returns beyond
+# it: one un-isolated long parse anywhere in the process would raise these
+# and silently reclassify a generated register as a declared one.
+_LIBRARY_CALCULATION_MAX = max(Calculations.calculations)
+_LIBRARY_VISIBILITY_MAX = max(Visibilities.visibilities)
+
+
+class TestLuxCalculationMatchesLibrary:
+    """Guard LuxCalculation against drifting from the library + our overrides.
+
+    Each member must follow `C<4-digit-index>_<description> =
+    "calculations.<name>"`, where <index> and <name> resolve to the *same*
+    entry in Calculations.calculations once the overrides are applied.
+
+    Both halves catch a real bug. The name is what lookup actually matches on
+    (Calculations._lookup, and key_exists() in common.py), so a name nobody
+    registered fails silently - the entity is simply never created. The index
+    is what base.py slices into the Luxtronik_Key state attribute, so a wrong
+    one advertises a register the entity does not read.
+    """
+
+    NAME_PATTERN = re.compile(r"^C(\d{4})_[A-Z0-9]+(?:_[A-Z0-9]+)*$")
+
+    # 0.3.14 stops at index 259, but Calculations.parse() creates an
+    # Unknown_Calculation_<index> entry for every further index the controller
+    # actually returns - so a name past the table is legitimate, and is
+    # verified against parse() below rather than exempted blindly.
+    AUTO_CREATED_PATTERN = re.compile(r"^Unknown_Calculation_(\d+)$")
+
+    def _auto_created_index(self, raw_name: str) -> int | None:
+        match = self.AUTO_CREATED_PATTERN.match(raw_name)
+        if match is None:
+            return None
+        index = int(match.group(1))
+        return index if index > _LIBRARY_CALCULATION_MAX else None
+
+    def test_members_match_library_and_overrides(self):
+        update_Luxtronik_Parameters()
+        registered = {
+            calculation.name: index
+            for index, calculation in Calculations.calculations.items()
+        }
+
+        problems = []
+        for member in LuxCalculation:
+            if member is LuxCalculation.UNSET:
+                continue
+
+            match = self.NAME_PATTERN.match(member.name)
+            if match is None:
+                problems.append(
+                    f"{member.name}: name doesn't match C<NNNN>_<DESCRIPTION>"
+                )
+                continue
+
+            if not member.value.startswith("calculations."):
+                problems.append(
+                    f"{member.name}: value {member.value!r} missing "
+                    "'calculations.' prefix"
+                )
+                continue
+
+            raw_name = member.value.removeprefix("calculations.")
+            auto_created = self._auto_created_index(raw_name)
+            index = registered.get(raw_name, auto_created)
+            if index is None:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is not registered in "
+                    "Calculations.calculations (library or lux_overrides)"
+                )
+                continue
+
+            label = int(match.group(1))
+            if label != index:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is calculation {index}, but the "
+                    f"member is labelled {label} - base.py reports that label as "
+                    "the register number"
+                )
+
+        assert not problems, "LuxCalculation / library mismatches:\n" + "\n".join(
+            problems
+        )
+
+    def _auto_created_members(self) -> dict[LuxCalculation, int]:
+        members = {}
+        for member in LuxCalculation:
+            if member is LuxCalculation.UNSET:
+                continue
+            index = self._auto_created_index(member.value.removeprefix("calculations."))
+            if index is not None:
+                members[member] = index
+        return members
+
+    def test_the_auto_created_names_are_really_created_by_parse(self):
+        """The exemption above is only sound because parse() registers those
+        indices. C0268 (current power consumption, and the denominator of both
+        instantaneous COP sensors) is the one relying on it: absent from the
+        static table, present on every controller that returns enough
+        registers - 15 of the 28 units in the diagnostics corpus do, with real
+        wattage."""
+        update_Luxtronik_Parameters()
+        isolate_instance_data()  # keep parse() off the class-level dict
+
+        auto_created = self._auto_created_members()
+        assert auto_created, "no auto-created members left - drop the exemption"
+
+        calculations = Calculations()
+        calculations.parse([0] * (max(auto_created.values()) + 1))
+        for member in auto_created:
+            raw_name = member.value.removeprefix("calculations.")
+            assert calculations.get(raw_name) is not None, (
+                f"{member.name}: parse() did not create {raw_name!r}"
+            )
+
+    def test_a_short_block_leaves_the_auto_created_names_absent(self):
+        """The other half of the same rule: those registers exist only on the
+        controllers that return them, which is what key_exists() reports on."""
+        update_Luxtronik_Parameters()
+        isolate_instance_data()
+
+        calculations = Calculations()
+        calculations.parse([0] * (max(Calculations.calculations) + 1))
+        for member in self._auto_created_members():
+            raw_name = member.value.removeprefix("calculations.")
+            assert calculations.get(raw_name) is None
+
+
+class TestLuxVisibilityMatchesLibrary:
+    """Guard LuxVisibility the way LuxParameter and LuxCalculation are guarded.
+
+    Each member must follow `V<4-digit-index>_<description> =
+    "visibilities.<name>"`, with <index> and <name> resolving to the same
+    entry in Visibilities.visibilities. The name is what get_value() matches
+    on, so a stale one makes entity_visible() log "Could not load visibility"
+    and fall open - every gated entity turns up enabled.
+
+    Two members are legitimately not register keys and are checked separately
+    below rather than exempted on trust.
+    """
+
+    NAME_PATTERN = re.compile(r"^V(\d{4})[A-Z]?_[A-Z0-9]+(?:_[A-Z0-9]+)*$")
+
+    # Visibilities.parse() creates an entry for every index past its table.
+    # 0.3.14 names those Unknown_Parameter_<index> - a copy-paste from
+    # parameters.py - which lux_overrides rewrites to the prefix the library
+    # already uses inside its own table.
+    AUTO_CREATED_PATTERN = re.compile(r"^Unknown_Visibility_(\d+)$")
+
+    # Synthetic gates that name no register at all: _special_visibility()
+    # answers them before get_value() is ever reached.
+    SYNTHETIC = frozenset({LuxVisibility.V0059A_DHW_CHARGING_PUMP})
+
+    def _auto_created_index(self, raw_name: str) -> int | None:
+        match = self.AUTO_CREATED_PATTERN.match(raw_name)
+        if match is None:
+            return None
+        index = int(match.group(1))
+        return index if index > _LIBRARY_VISIBILITY_MAX else None
+
+    def test_members_match_library_and_overrides(self):
+        update_Luxtronik_Parameters()
+        registered = {
+            visibility.name: index
+            for index, visibility in Visibilities.visibilities.items()
+        }
+
+        problems = []
+        for member in LuxVisibility:
+            if member is LuxVisibility.UNSET or member in self.SYNTHETIC:
+                continue
+
+            match = self.NAME_PATTERN.match(member.name)
+            if match is None:
+                problems.append(
+                    f"{member.name}: name doesn't match V<NNNN>_<DESCRIPTION>"
+                )
+                continue
+
+            if not member.value.startswith("visibilities."):
+                problems.append(
+                    f"{member.name}: value {member.value!r} missing "
+                    "'visibilities.' prefix"
+                )
+                continue
+
+            raw_name = member.value.removeprefix("visibilities.")
+            # A generated name is accepted on its shape alone here; that it is
+            # the name parse() really produces is what the next test proves.
+            index = registered.get(raw_name, self._auto_created_index(raw_name))
+            if index is None:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is not registered in "
+                    "Visibilities.visibilities"
+                )
+                continue
+
+            label = int(match.group(1))
+            if label != index:
+                problems.append(
+                    f"{member.name}: {raw_name!r} is visibility {index}, but the "
+                    f"member is labelled {label}"
+                )
+
+        assert not problems, "LuxVisibility / library mismatches:\n" + "\n".join(
+            problems
+        )
+
+    def test_the_auto_created_names_are_really_created_by_parse(self):
+        """V0357 (electrical power limitation) sits past the table: 64 of the
+        80 diagnostics dumps carry that index, generated rather than declared.
+        The name asserted here is the one lux_overrides installs."""
+        update_Luxtronik_Parameters()
+        isolate_instance_data()  # keep parse() off the class-level dict
+        name_unknown_visibilities_correctly()
+
+        auto_created = {
+            member: index
+            for member in LuxVisibility
+            if member is not LuxVisibility.UNSET
+            and member not in self.SYNTHETIC
+            and (
+                index := self._auto_created_index(
+                    member.value.removeprefix("visibilities.")
+                )
+            )
+            is not None
+        }
+        assert auto_created, "no auto-created members left - drop the exemption"
+
+        visibilities = Visibilities()
+        visibilities.parse([0] * (max(auto_created.values()) + 1))
+        for member in auto_created:
+            raw_name = member.value.removeprefix("visibilities.")
+            assert visibilities.get(raw_name) is not None, (
+                f"{member.name}: parse() did not create {raw_name!r}"
+            )
+
+    def test_the_synthetic_members_are_answered_without_a_register(self):
+        """V0059A is not a register: the DHW charging pump is present exactly
+        when the recirculation pump is not, so _special_visibility() answers
+        it and get_value() is never reached. If that special case ever goes
+        away, the member becomes an unresolvable key instead of a gate."""
+        coordinator = MagicMock(spec=LuxtronikCoordinator)
+        for member in self.SYNTHETIC:
+            answer = LuxtronikCoordinator._special_visibility(coordinator, member)
+            assert answer is not None, (
+                f"{member.name} names no register and has no special case"
+            )
+
+
+class TestLuxEnumsHaveNoAliases:
+    """Two members sharing a value make the second one a Python enum *alias*:
+    `LuxVisibility(...)` and iteration both yield only the first, so the
+    second name silently resolves to the first member and never shows up in
+    any check that walks the enum. V0009_MK3 and V0211_MK3 were exactly that
+    - the same visibility defined twice, the correct label shadowed by the
+    wrong one, and every consistency test blind to it.
+    """
+
+    def test_no_member_is_an_alias_of_another(self):
+        problems = []
+        for enum in (LuxParameter, LuxCalculation, LuxVisibility):
+            for name, member in enum.__members__.items():
+                if name != member.name:
+                    problems.append(
+                        f"{enum.__name__}.{name} is an alias of {member.name} "
+                        f"- both are {member.value!r}"
+                    )
+        assert not problems, "duplicate enum values:\n" + "\n".join(problems)

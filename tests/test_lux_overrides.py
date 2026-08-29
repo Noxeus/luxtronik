@@ -8,6 +8,7 @@ from luxtronik.datatypes import (
     Celsius,
     HeatpumpCode,
     Kelvin,
+    Percent2,
     SwitchoffFile,
     Unknown,
 )
@@ -23,7 +24,9 @@ from custom_components.luxtronik2.const import (
     CONF_VISIBILITIES,
     PARSED_COUNT_ATTR,
     WRITABLE_PARAMETER_PREFIXES,
+    LuxCalculation as LC,
     LuxSwitchoffReason,
+    LuxVisibility as LV,
 )
 from custom_components.luxtronik2.model import LuxtronikCoordinatorData
 
@@ -270,14 +273,24 @@ class TestFrequencyAutomatic:
 
 @pytest.fixture
 def restore_parse():
-    """record_parsed_block_lengths patches library classes process-wide."""
+    """Both parse patches are installed process-wide and guarded by a module
+    flag, so the flag has to travel with the function it guards: put parse
+    back without resetting the flag and every later call returns at the guard,
+    leaving the patch permanently uninstalled."""
     originals = {cls: cls.parse for cls in (Parameters, Calculations, Visibilities)}
-    flag = lux_overrides._PARSE_COUNTS_RECORDED
+    flags = (
+        lux_overrides._PARSE_COUNTS_RECORDED,
+        lux_overrides._UNKNOWN_VISIBILITY_NAMES_FIXED,
+    )
     lux_overrides._PARSE_COUNTS_RECORDED = False
+    lux_overrides._UNKNOWN_VISIBILITY_NAMES_FIXED = False
     yield
     for cls, parse in originals.items():
         cls.parse = parse
-    lux_overrides._PARSE_COUNTS_RECORDED = flag
+    (
+        lux_overrides._PARSE_COUNTS_RECORDED,
+        lux_overrides._UNKNOWN_VISIBILITY_NAMES_FIXED,
+    ) = flags
 
 
 class TestRecordParsedBlockLengths:
@@ -658,3 +671,125 @@ class TestHeatingCircuitControlMode:
         assert self._datatype().from_heatpump(0) == "heating_curve_control"
         assert self._datatype().from_heatpump(1) == "fixed_temperature"
         assert self._datatype().from_heatpump(2) == "analog_in"
+
+
+class TestCalculationNamesFollowUpstreamMain:
+    """The pinned 0.3.14 leaves calculations 239/240/242/243 unnamed and
+    calls 241 Circulation_Pump. Upstream main has since named all five, and
+    lists Circulation_Pump only as an alias of HUP_PWM. Renaming them here
+    keeps const.py readable and makes the eventual library bump a no-op for
+    these registers - two diagnostics dumps in the corpus already came from
+    an installation carrying the newer names.
+
+    The rename must not change how a value is read: the datatypes stay the
+    ones 0.3.14 ships, so the descriptions keep supplying their own scaling.
+    """
+
+    RENAMED = {
+        239: "VBO_Temp_Spread_Soll",
+        240: "VBO_Temp_Spread_Ist",
+        241: "HUP_PWM",
+        242: "HUP_Temp_Spread_Soll",
+        243: "HUP_Temp_Spread_Ist",
+    }
+
+    def test_calculations_carry_the_upstream_names(self):
+        lux_overrides.update_Luxtronik_Parameters()
+        for index, name in self.RENAMED.items():
+            assert Calculations.calculations[index].name == name
+
+    def test_rename_keeps_the_pinned_datatypes(self):
+        """Percent2 and Unknown are both pass-throughs - a value read before
+        the rename reads the same after it."""
+        lux_overrides.update_Luxtronik_Parameters()
+        for index in (239, 240, 242, 243):
+            assert isinstance(Calculations.calculations[index], Unknown)
+        assert isinstance(Calculations.calculations[241], Percent2)
+        assert Calculations.calculations[241].from_heatpump(46) == 46
+        assert Calculations.calculations[243].from_heatpump(37) == 37
+
+    def test_the_const_keys_resolve_to_a_real_register(self):
+        """The names in const.py and the names in the patched library are
+        the same string, which is what key_exists() matches on."""
+        lux_overrides.update_Luxtronik_Parameters()
+        calculations = Calculations()
+        for key in (
+            LC.C0239_PUMP_FLOW_DELTA_TARGET,
+            LC.C0240_PUMP_FLOW_DELTA,
+            LC.C0241_CIRCULATION_PUMP_PWM,
+            LC.C0242_CIRCULATION_PUMP_DELTA_TARGET,
+            LC.C0243_CIRCULATION_PUMP_DELTA,
+        ):
+            assert calculations.get(str(key).split(".", 1)[1]) is not None
+
+
+class TestUnknownVisibilityNames:
+    """0.3.14's Visibilities.parse() names every index past its table
+    `Unknown_Parameter_<index>` - a copy-paste from parameters.py, where that
+    prefix is right. Inside the table the same library already uses
+    `Unknown_Visibility_<index>` (30 such entries), and upstream main uses it
+    for the generated ones too, so the parameter prefix is simply wrong.
+
+    It matters beyond tidiness: controllers routinely return 400 visibilities
+    (46 of the 80 diagnostics dumps do), so indices 355+ are generated on most
+    units, and a key like V0357 has to spell the placeholder exactly.
+    """
+
+    LONG_BLOCK = [0] * 401
+
+    def _parsed(self):
+        """Callers take the restore_parse fixture; this installs the patch."""
+        lux_overrides.update_Luxtronik_Parameters()
+        lux_overrides.isolate_instance_data()
+        lux_overrides.name_unknown_visibilities_correctly()
+        visibilities = Visibilities()
+        visibilities.parse(self.LONG_BLOCK)
+        return visibilities
+
+    def test_generated_names_use_the_visibility_prefix(self, restore_parse):
+        visibilities = self._parsed()
+        assert visibilities.visibilities[357].name == "Unknown_Visibility_357"
+        assert visibilities.get("Unknown_Visibility_357") is not None
+
+    def test_no_generated_name_keeps_the_parameter_prefix(self, restore_parse):
+        visibilities = self._parsed()
+        stale = [
+            index
+            for index, visibility in visibilities.visibilities.items()
+            if visibility.name.startswith("Unknown_Parameter_")
+        ]
+        assert not stale
+
+    def test_named_and_in_table_placeholders_are_untouched(self, restore_parse):
+        """Only the generated names are rewritten - the library's own
+        Unknown_Visibility_* entries and every real name stay as they are."""
+        visibilities = self._parsed()
+        assert visibilities.visibilities[5].name == "ID_Visi_Kuhlung"
+        assert visibilities.visibilities[325].name == "Unknown_Visibility_325"
+
+    def test_parameters_keep_their_own_prefix(self, restore_parse):
+        """Unknown_Parameter_<index> is correct for parameters; the rename
+        must not follow the patch onto the other two classes."""
+        lux_overrides.update_Luxtronik_Parameters()
+        lux_overrides.isolate_instance_data()
+        lux_overrides.name_unknown_visibilities_correctly()
+        parameters = Parameters()
+        parameters.parse([0] * 1200)
+        assert parameters.parameters[1150].name == "Unknown_Parameter_1150"
+
+    def test_applying_twice_installs_one_wrapper(self, restore_parse):
+        """Asserted on the patch, not on its output: the rewrite is
+        idempotent, so even a stacked wrapper produces the right name and
+        would never show up in a parsed value."""
+        lux_overrides.name_unknown_visibilities_correctly()
+        installed = Visibilities.parse
+        lux_overrides.name_unknown_visibilities_correctly()
+        assert Visibilities.parse is installed
+
+    def test_the_const_key_matches_what_parse_produces(self, restore_parse):
+        """V0357 is the one member naming a generated visibility."""
+        visibilities = self._parsed()
+        raw_name = LV.V0357_ELECTRICAL_POWER_LIMITATION_SWITCH.removeprefix(
+            "visibilities."
+        )
+        assert visibilities.get(raw_name) is not None

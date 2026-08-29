@@ -615,17 +615,16 @@ class LuxCalculation(StrEnum):
     C0015_OUTDOOR_TEMPERATURE = "calculations.ID_WEB_Temperatur_TA"
     C0016_OUTDOOR_TEMPERATURE_AVERAGE = "calculations.ID_WEB_Mitteltemperatur"
     C0017_DHW_TEMPERATURE = "calculations.ID_WEB_Temperatur_TBW"
-    C0018_FLOW_IN_CIRCUIT1_TEMPERATURE = "calculations.ID_WEB_Temperatur_TFB1"
-    C0019_FLOW_IN_CIRCUIT2_TEMPERATURE = "calculations.ID_WEB_Temperatur_TFB2"
-    C0020_FLOW_IN_CIRCUIT3_TEMPERATURE = "calculations.ID_WEB_Temperatur_TFB3"
-    C0021_FLOW_IN_CIRCUIT1_TARGET_TEMPERATURE = "calculations.ID_WEB_Sollwert_TVL_MK1"
-    C0022_FLOW_IN_CIRCUIT2_TARGET_TEMPERATURE = "calculations.ID_WEB_Sollwert_TVL_MK2"
-    C0023_FLOW_IN_CIRCUIT3_TARGET_TEMPERATURE = "calculations.ID_WEB_Sollwert_TVL_MK3"
+    C0019_HEAT_SOURCE_INPUT_TEMPERATURE = "calculations.ID_WEB_Temperatur_TWE"
+    C0020_HEAT_SOURCE_OUTPUT_TEMPERATURE = "calculations.ID_WEB_Temperatur_TWA"
+    C0021_FLOW_IN_CIRCUIT1_TEMPERATURE = "calculations.ID_WEB_Temperatur_TFB1"
+    C0022_FLOW_IN_CIRCUIT1_TARGET_TEMPERATURE = "calculations.ID_WEB_Sollwert_TVL_MK1"
     # Room station (Raumfernversteller) adjuster, +/-5 K. Doubles as the
     # SmartGrid SG2 input on Luxtronik 2.0 controllers, where the reading
     # flips between the two rails with the contact, see #669.
     C0023_ROOM_STATION_RFV = "calculations.ID_WEB_Temperatur_RFV"
-    C0024_HEAT_SOURCE_OUTPUT_TEMPERATURE = "calculations.ID_WEB_Temperatur_TWA"
+    C0024_FLOW_IN_CIRCUIT2_TEMPERATURE = "calculations.ID_WEB_Temperatur_TFB2"
+    C0025_FLOW_IN_CIRCUIT2_TARGET_TEMPERATURE = "calculations.ID_WEB_Sollwert_TVL_MK2"
     C0026_SOLAR_COLLECTOR_TEMPERATURE = "calculations.ID_WEB_Temperatur_TSK"
     C0027_SOLAR_BUFFER_TEMPERATURE = "calculations.ID_WEB_Temperatur_TSS"
     C0029_DEFROST_END_FLOW_OKAY = "calculations.ID_WEB_ASDin"
@@ -636,7 +635,7 @@ class LuxCalculation(StrEnum):
     # correct already ("Locktime"); only this identifier reads backwards.
     C0031_EVU_UNLOCKED = "calculations.ID_WEB_EVUin"
     # C0032_HIGH_PRESSURE_OKAY: Final = "calculations.ID_WEB_HDin"  # True/False -> Hochdruck OK
-    C0034_MOTOR_PROTECTION = "calculations.ID_WEB_MOTin"
+    C0033_MOTOR_PROTECTION = "calculations.ID_WEB_MOTin"
     C0037_DEFROST_VALVE = "calculations.ID_WEB_AVout"
     C0038_DHW_RECIRCULATION_PUMP = "calculations.ID_WEB_BUPout"
     C0039_CIRCULATION_PUMP_HEATING = "calculations.ID_WEB_HUPout"
@@ -689,6 +688,8 @@ class LuxCalculation(StrEnum):
     C0118_STATUS_LINE_2 = "calculations.ID_WEB_HauptMenuStatus_Zeile2"
     C0119_STATUS_LINE_3 = "calculations.ID_WEB_HauptMenuStatus_Zeile3"
     C0120_STATUS_TIME = "calculations.ID_WEB_HauptMenuStatus_Zeit"
+    C0136_FLOW_IN_CIRCUIT3_TARGET_TEMPERATURE = "calculations.ID_WEB_Sollwert_TVL_MK3"
+    C0137_FLOW_IN_CIRCUIT3_TEMPERATURE = "calculations.ID_WEB_Temperatur_TFB3"
     C0141_TIMER_DEFROST = "calculations.ID_WEB_Time_AbtIn"
     C0146_APPROVAL_COOLING = "calculations.ID_WEB_FreigabKuehl"
     C0151_HEAT_AMOUNT_HEATING = "calculations.ID_WEB_WMZ_Heizung"
@@ -717,22 +718,27 @@ class LuxCalculation(StrEnum):
     C0180_HIGH_PRESSURE = "calculations.ID_WEB_LIN_HD"
     C0181_LOW_PRESSURE = "calculations.ID_WEB_LIN_ND"
     C0182_COMPRESSOR_HEATER = "calculations.ID_WEB_LIN_VDH_out"
+    C0183_PUMP_PWM = "calculations.ID_WEB_HZIO_PWM"
     C0185_EVU2 = "calculations.ID_WEB_HZIO_EVU2"
     # C0187_CURRENT_OUTPUT: Final = "calculations.ID_WEB_SEC_Qh_Soll"
     # C0188_CURRENT_OUTPUT: Final = "calculations.ID_WEB_SEC_Qh_Ist"
-    C0204_HEAT_SOURCE_INPUT_TEMPERATURE = "calculations.ID_WEB_Temperatur_TWE"
     C0227_ROOM_THERMOSTAT_TEMPERATURE = "calculations.ID_WEB_RBE_RT_Ist"
     C0228_ROOM_THERMOSTAT_TEMPERATURE_TARGET = "calculations.ID_WEB_RBE_RT_Soll"
     C0231_PUMP_FREQUENCY = "calculations.ID_WEB_Freq_VD"
-    C0239_PUMP_FLOW_DELTA_TARGET = "calculations.Unknown_Calculation_239"
-    # 239: Kelvin("VBO_Temp_Spread_Soll"), / 10, measurement, delta - ait_hup_vbo_calculated
-    C0240_PUMP_FLOW_DELTA = "calculations.Unknown_Calculation_240"
-    # 240: Kelvin("VBO_Temp_Spread_Ist"), / 10, measurement, delta - ait_vbo_delta
-    # 241: Percent2("HUP_PWM"),
-    C0242_CIRCULATION_PUMP_DELTA_TARGET = "calculations.Unknown_Calculation_242"
-    # 242: Kelvin("HUP_Temp_Spread_Soll"), / 10, measurement, delta - ait_hup_delta_calculated
-    C0243_CIRCULATION_PUMP_DELTA = "calculations.Unknown_Calculation_243"
-    # 243: Kelvin("HUP_Temp_Spread_Ist"), / 10, measurement, delta - ait_hup_delta
+    # 239-243 carry upstream main's names, applied by lux_overrides: the
+    # pinned 0.3.14 still ships 239/240/242/243 as Unknown_Calculation_* and
+    # 241 as Circulation_Pump (an alias of HUP_PWM upstream).
+    C0239_PUMP_FLOW_DELTA_TARGET = "calculations.VBO_Temp_Spread_Soll"
+    # Kelvin upstream, / 10 - the factor is applied by the description. Known
+    # in the wild as ait_hup_vbo_calculated.
+    C0240_PUMP_FLOW_DELTA = "calculations.VBO_Temp_Spread_Ist"
+    # Kelvin upstream, / 10 by the description - ait_vbo_delta.
+    C0241_CIRCULATION_PUMP_PWM = "calculations.HUP_PWM"
+    # Percent2 - already a percentage, so no factor.
+    C0242_CIRCULATION_PUMP_DELTA_TARGET = "calculations.HUP_Temp_Spread_Soll"
+    # Kelvin upstream, / 10 by the description - ait_hup_delta_calculated.
+    C0243_CIRCULATION_PUMP_DELTA = "calculations.HUP_Temp_Spread_Ist"
+    # Kelvin upstream, / 10 by the description - ait_hup_delta.
     # 254 Flow Rate
     C0257_CURRENT_HEAT_OUTPUT = "calculations.Heat_Output"
     C0258_RBE_VERSION = "calculations.RBE_Version"
@@ -750,7 +756,6 @@ class LuxVisibility(StrEnum):
     V0005_COOLING = "visibilities.ID_Visi_Kuhlung"
     V0007_MK1 = "visibilities.ID_Visi_MK1"
     V0008_MK2 = "visibilities.ID_Visi_MK2"
-    V0009_MK3 = "visibilities.ID_Visi_MK3"
     V0023_FLOW_IN_TEMPERATURE = "visibilities.ID_Visi_Temp_Vorlauf"
     V0024_FLOW_OUT_TEMPERATURE_EXTERNAL = "visibilities.ID_Visi_Temp_Rucklauf"
     V0027_HOT_GAS_TEMPERATURE = "visibilities.ID_Visi_Temp_Heissgas"
@@ -797,7 +802,7 @@ class LuxVisibility(StrEnum):
     V0324_ADDITIONAL_HEAT_GENERATOR_AMOUNT_COUNTER = (
         "visibilities.ID_Visi_Waermemenge_ZWE"
     )
-    V0357_ELECTRICAL_POWER_LIMITATION_SWITCH = "visibilities.Unknown_Parameter_357"
+    V0357_ELECTRICAL_POWER_LIMITATION_SWITCH = "visibilities.Unknown_Visibility_357"
 
 
 # endregion visibilities
@@ -868,6 +873,8 @@ class SensorKey(StrEnum):
     PUMP_FLOW_DELTA = "pump_flow_delta"
     CIRCULATION_PUMP_DELTA_TARGET = "circulation_pump_delta_target"
     CIRCULATION_PUMP_DELTA = "circulation_pump_delta"
+    PUMP_PWM = "pump_pwm"
+    CIRCULATION_PUMP_PWM = "circulation_pump_pwm"
     HEAT_SOURCE_OUTPUT_TEMPERATURE = "heat_source_output_temperature"
     ERROR_REASON = "error_reason"
     FLOW_IN_TEMPERATURE = "flow_in_temperature"

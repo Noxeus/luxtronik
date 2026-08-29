@@ -143,3 +143,9 @@ check_coverage.py
 
 # Heat pump diagnostics dumps (re-downloadable from GitHub issues, kept local)
 diagnostics/
+
+# CodeGraph index (local code intelligence cache)
+.codegraph/
+
+# Playwright MCP session data (local scratch)
+.playwright-mcp/
