@@ -725,16 +725,20 @@ class LuxCalculation(StrEnum):
     C0227_ROOM_THERMOSTAT_TEMPERATURE = "calculations.ID_WEB_RBE_RT_Ist"
     C0228_ROOM_THERMOSTAT_TEMPERATURE_TARGET = "calculations.ID_WEB_RBE_RT_Soll"
     C0231_PUMP_FREQUENCY = "calculations.ID_WEB_Freq_VD"
-    C0239_PUMP_FLOW_DELTA_TARGET = "calculations.Unknown_Calculation_239"
-    # 239: Kelvin("VBO_Temp_Spread_Soll"), / 10, measurement, delta - ait_hup_vbo_calculated
-    C0240_PUMP_FLOW_DELTA = "calculations.Unknown_Calculation_240"
-    # 240: Kelvin("VBO_Temp_Spread_Ist"), / 10, measurement, delta - ait_vbo_delta
-    C0241_CIRCULATION_PUMP_PWM = "calculations.Circulation_Pump"
-    # 241: Percent2("HUP_PWM") in older library revisions - the same register.
-    C0242_CIRCULATION_PUMP_DELTA_TARGET = "calculations.Unknown_Calculation_242"
-    # 242: Kelvin("HUP_Temp_Spread_Soll"), / 10, measurement, delta - ait_hup_delta_calculated
-    C0243_CIRCULATION_PUMP_DELTA = "calculations.Unknown_Calculation_243"
-    # 243: Kelvin("HUP_Temp_Spread_Ist"), / 10, measurement, delta - ait_hup_delta
+    # 239-243 carry upstream main's names, applied by lux_overrides: the
+    # pinned 0.3.14 still ships 239/240/242/243 as Unknown_Calculation_* and
+    # 241 as Circulation_Pump (an alias of HUP_PWM upstream).
+    C0239_PUMP_FLOW_DELTA_TARGET = "calculations.VBO_Temp_Spread_Soll"
+    # Kelvin upstream, / 10 - the factor is applied by the description. Known
+    # in the wild as ait_hup_vbo_calculated.
+    C0240_PUMP_FLOW_DELTA = "calculations.VBO_Temp_Spread_Ist"
+    # Kelvin upstream, / 10 by the description - ait_vbo_delta.
+    C0241_CIRCULATION_PUMP_PWM = "calculations.HUP_PWM"
+    # Percent2 - already a percentage, so no factor.
+    C0242_CIRCULATION_PUMP_DELTA_TARGET = "calculations.HUP_Temp_Spread_Soll"
+    # Kelvin upstream, / 10 by the description - ait_hup_delta_calculated.
+    C0243_CIRCULATION_PUMP_DELTA = "calculations.HUP_Temp_Spread_Ist"
+    # Kelvin upstream, / 10 by the description - ait_hup_delta.
     # 254 Flow Rate
     C0257_CURRENT_HEAT_OUTPUT = "calculations.Heat_Output"
     C0258_RBE_VERSION = "calculations.RBE_Version"

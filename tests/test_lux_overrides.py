@@ -8,6 +8,7 @@ from luxtronik.datatypes import (
     Celsius,
     HeatpumpCode,
     Kelvin,
+    Percent2,
     SwitchoffFile,
     Unknown,
 )
@@ -23,6 +24,7 @@ from custom_components.luxtronik2.const import (
     CONF_VISIBILITIES,
     PARSED_COUNT_ATTR,
     WRITABLE_PARAMETER_PREFIXES,
+    LuxCalculation as LC,
     LuxSwitchoffReason,
 )
 from custom_components.luxtronik2.model import LuxtronikCoordinatorData
@@ -658,3 +660,53 @@ class TestHeatingCircuitControlMode:
         assert self._datatype().from_heatpump(0) == "heating_curve_control"
         assert self._datatype().from_heatpump(1) == "fixed_temperature"
         assert self._datatype().from_heatpump(2) == "analog_in"
+
+
+class TestCalculationNamesFollowUpstreamMain:
+    """The pinned 0.3.14 leaves calculations 239/240/242/243 unnamed and
+    calls 241 Circulation_Pump. Upstream main has since named all five, and
+    lists Circulation_Pump only as an alias of HUP_PWM. Renaming them here
+    keeps const.py readable and makes the eventual library bump a no-op for
+    these registers - two diagnostics dumps in the corpus already came from
+    an installation carrying the newer names.
+
+    The rename must not change how a value is read: the datatypes stay the
+    ones 0.3.14 ships, so the descriptions keep supplying their own scaling.
+    """
+
+    RENAMED = {
+        239: "VBO_Temp_Spread_Soll",
+        240: "VBO_Temp_Spread_Ist",
+        241: "HUP_PWM",
+        242: "HUP_Temp_Spread_Soll",
+        243: "HUP_Temp_Spread_Ist",
+    }
+
+    def test_calculations_carry_the_upstream_names(self):
+        lux_overrides.update_Luxtronik_Parameters()
+        for index, name in self.RENAMED.items():
+            assert Calculations.calculations[index].name == name
+
+    def test_rename_keeps_the_pinned_datatypes(self):
+        """Percent2 and Unknown are both pass-throughs - a value read before
+        the rename reads the same after it."""
+        lux_overrides.update_Luxtronik_Parameters()
+        for index in (239, 240, 242, 243):
+            assert isinstance(Calculations.calculations[index], Unknown)
+        assert isinstance(Calculations.calculations[241], Percent2)
+        assert Calculations.calculations[241].from_heatpump(46) == 46
+        assert Calculations.calculations[243].from_heatpump(37) == 37
+
+    def test_the_const_keys_resolve_to_a_real_register(self):
+        """The names in const.py and the names in the patched library are
+        the same string, which is what key_exists() matches on."""
+        lux_overrides.update_Luxtronik_Parameters()
+        calculations = Calculations()
+        for key in (
+            LC.C0239_PUMP_FLOW_DELTA_TARGET,
+            LC.C0240_PUMP_FLOW_DELTA,
+            LC.C0241_CIRCULATION_PUMP_PWM,
+            LC.C0242_CIRCULATION_PUMP_DELTA_TARGET,
+            LC.C0243_CIRCULATION_PUMP_DELTA,
+        ):
+            assert calculations.get(str(key).split(".", 1)[1]) is not None

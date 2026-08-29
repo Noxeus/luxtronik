@@ -16,6 +16,7 @@ from luxtronik.datatypes import (
     SelectionBase,
     SwitchoffFile,
     Timestamp,
+    Unknown,
 )
 from luxtronik.parameters import Parameters
 from luxtronik.visibilities import Visibilities
@@ -298,6 +299,17 @@ parameters_to_add_update = {
 }
 
 calculations_to_add_update = {
+    # Names follow upstream main (luxtronik/definitions/calculations.py),
+    # which has since named the pump spread and PWM registers that the
+    # pinned 0.3.14 still ships as Unknown_Calculation_*. Main lists
+    # Circulation_Pump only as an alias of HUP_PWM for 241, so HUP_PWM is
+    # the name to carry. The datatypes stay the ones 0.3.14 ships - this is
+    # a rename, and the descriptions keep supplying their own scaling.
+    239: Unknown("VBO_Temp_Spread_Soll", False),
+    240: Unknown("VBO_Temp_Spread_Ist", False),
+    241: Percent2("HUP_PWM", False),
+    242: Unknown("HUP_Temp_Spread_Soll", False),
+    243: Unknown("HUP_Temp_Spread_Ist", False),
     258: MajorMinorVersion("RBE_Version", False),
 }
 

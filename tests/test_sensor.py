@@ -17,6 +17,7 @@ from homeassistant.const import (
 from luxtronik.calculations import Calculations
 
 from conftest import make_coordinator_data
+from custom_components.luxtronik2 import lux_overrides
 from custom_components.luxtronik2.binary_sensor import LuxtronikBinarySensorEntity
 from custom_components.luxtronik2.const import (
     CONF_HA_SENSOR_PREFIX,
@@ -771,6 +772,10 @@ def _assert_raw_converts_to(
     sensor_key: SensorKey, raw_value: int, expected: float
 ) -> None:
     """Push a raw register value through the real datatype and description."""
+    # Production applies the library overrides before any read (see
+    # connect_and_get_coordinator); some registers are only known by the
+    # name those overrides install, so the lookup below needs them too.
+    lux_overrides.update_Luxtronik_Parameters()
     description = next(d for d in SENSORS if d.key == sensor_key)
     raw_name = description.luxtronik_key.rsplit(".", 1)[1]
     datatype = Calculations().get(raw_name)
@@ -1176,4 +1181,4 @@ class TestPumpPwmSensors:
         vbo = next(d for d in SENSORS if d.key == SensorKey.PUMP_PWM)
         hup = next(d for d in SENSORS if d.key == SensorKey.CIRCULATION_PUMP_PWM)
         assert vbo.luxtronik_key == "calculations.ID_WEB_HZIO_PWM"
-        assert hup.luxtronik_key == "calculations.Circulation_Pump"
+        assert hup.luxtronik_key == "calculations.HUP_PWM"
