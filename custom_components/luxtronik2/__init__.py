@@ -81,11 +81,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: LuxtronikConfigEntry) ->
     if entry.unique_id is None:
         hass.config_entries.async_update_entry(entry, unique_id=coordinator.unique_id)
 
-    # Prune device-registry entries that no longer match this device's model
-    # (see I10 follow-up) - moved here from async_migrate_entry so a stale
-    # entry doesn't need a live connection just to migrate. `get_device()`
-    # ensures device_infos is populated before pruning against it.
-    coordinator.get_device()
+    # Registers the physical device and populates `device_infos`: the heat pump
+    # has to exist in the registry before the sub-devices can reference it by
+    # `via_device_id`, and pruning below needs the map to prune against.
+    #
+    # Pruning removes device-registry entries that no longer match this
+    # device's model (see I10 follow-up) - moved here from async_migrate_entry
+    # so a stale entry doesn't need a live connection just to migrate.
+    coordinator.async_register_devices()
     await _async_delete_legacy_devices(hass, entry, coordinator)
     await _async_remove_legacy_smart_grid_switch(hass, entry)
 

@@ -710,7 +710,7 @@ class TestAsyncSetupEntry:
 
         coordinator = MagicMock()
         coordinator.manufacturer = "Alpha Innotec"
-        coordinator.get_device = MagicMock()
+        coordinator.async_register_devices = MagicMock()
         coordinator.async_config_entry_first_refresh = AsyncMock()
 
         with (
@@ -727,7 +727,9 @@ class TestAsyncSetupEntry:
             result = await async_setup_entry(hass, entry)
 
         assert result is True
-        coordinator.get_device.assert_called_once()
+        # Registration must happen before pruning: pruning compares the
+        # registry against `device_infos`, which registration fills in.
+        coordinator.async_register_devices.assert_called_once()
         mock_prune.assert_awaited_once_with(hass, entry, coordinator)
 
     @pytest.mark.asyncio

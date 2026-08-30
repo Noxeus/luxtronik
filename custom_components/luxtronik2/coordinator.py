@@ -13,8 +13,9 @@ from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_TIMEOUT
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -383,31 +384,66 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
         config: Mapping[str, Any],
     ):
         host = config[CONF_HOST]
-        self.device_infos[DeviceKey.heatpump] = self._build_device_info(
-            DeviceKey.heatpump, host
-        )
-        via = (
-            DOMAIN,
-            f"{self.unique_id}_{DeviceKey.heatpump}".lower(),
-        )
-        self.device_infos[DeviceKey.heating] = self._build_device_info(
-            DeviceKey.heating, host, via
-        )
-        self.device_infos[DeviceKey.domestic_water] = self._build_device_info(
-            DeviceKey.domestic_water, host, via
-        )
-        self.device_infos[DeviceKey.cooling] = self._build_device_info(
-            DeviceKey.cooling, host, via
-        )
-        self.device_infos[DeviceKey.ventilation] = self._build_device_info(
-            DeviceKey.ventilation, host, via
+        heatpump = self._build_device_info(DeviceKey.heatpump, host)
+        heatpump_device_id = self._register_heatpump(hass, heatpump)
+        # Built as one map and assigned in a single step: `__init__` prunes the
+        # device registry against `device_infos`, so a half-filled map would
+        # read as "these devices are gone".
+        device_infos = {DeviceKey.heatpump: heatpump}
+        for key in (
+            DeviceKey.heating,
+            DeviceKey.domestic_water,
+            DeviceKey.cooling,
+            DeviceKey.ventilation,
+        ):
+            device_infos[key] = self._build_device_info(key, host, heatpump_device_id)
+        self.device_infos = device_infos
+
+    @callback
+    def async_register_devices(self) -> None:
+        """Register the physical device and build every device info.
+
+        Registering the heat pump is what lets the sub-devices reference it by
+        `via_device_id`, so it has to happen before the platforms are set up.
+        `get_device()` would do it lazily on first use, but that would put a
+        device registry write inside an entity constructor; calling this from
+        `async_setup_entry` keeps the write on an explicit, loop-only path.
+        """
+        self._create_device_infos(self.hass, self._config)
+
+    def _register_heatpump(
+        self,
+        hass: HomeAssistant,
+        heatpump: DeviceInfo,
+    ) -> str | None:
+        """Register the physical unit and return its device registry id.
+
+        The sub-devices are linked to it with `via_device_id`, which is a
+        registry id rather than an identifier tuple, so the heat pump has to be
+        registered before they are built - entity setup is too late.
+
+        Returns `None` when there is no config entry to own the device, which
+        leaves the sub-devices unparented. No production path reaches that:
+        `config_flow` does build entry-less coordinators to probe a connection,
+        but it only ever reads `unique_id` from them. The branch is kept as the
+        safe fallback for that shape rather than as a case that happens.
+        """
+        if self.config_entry is None:
+            return None
+        # Only main-device keys may be splatted here: `async_get_or_create`
+        # rejects unexpected keyword arguments, and `DeviceInfo` has grown
+        # child-device keys that `entity_platform` strips before its own call.
+        return (
+            dr.async_get(hass)
+            .async_get_or_create(config_entry_id=self.config_entry.entry_id, **heatpump)
+            .id
         )
 
     def _build_device_info(
         self,
         key: DeviceKey,
         host: str,
-        via_device: tuple[str, str] | None = None,
+        via_device_id: str | None = None,
     ) -> DeviceInfo:
         device_info = DeviceInfo(
             identifiers={
@@ -425,18 +461,19 @@ class LuxtronikCoordinator(DataUpdateCoordinator[LuxtronikCoordinatorData]):
             hw_version=None,
             manufacturer=self.manufacturer,
         )
-        if via_device is not None:
-            device_info["via_device"] = via_device
-        else:
+        if key is DeviceKey.heatpump:  # the root device
             # Only the physical unit carries the serial: heating, domestic
             # water and cooling are logical sub-devices of the same heat pump
-            # (they are the ones passing `via_device`), and repeating the
-            # serial on each would read as several units sharing one serial.
+            # (they are the ones parented by `via_device_id`), and repeating
+            # the serial on each would read as several units sharing one
+            # serial.
             #
             # Rendered as `unique_id` rather than `serial_number` so it matches
             # the string `config_flow` prints when a second config entry
             # collides on this serial.
             device_info["serial_number"] = self.unique_id
+        if via_device_id is not None:
+            device_info["via_device_id"] = via_device_id
         return device_info
 
     def _is_version_not_compatible(

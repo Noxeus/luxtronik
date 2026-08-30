@@ -29,7 +29,6 @@ TO_REDACT = {
     "unique_id",
     "serial_number",
     "identifiers",
-    "via_device",
     "configuration_url",
 }
 

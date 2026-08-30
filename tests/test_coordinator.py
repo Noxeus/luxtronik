@@ -8,10 +8,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from packaging.version import Version
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import make_coordinator_data
 from custom_components.luxtronik2.const import (
@@ -2201,3 +2204,111 @@ class TestDhwTransitionHold:
             self._data(LuxOperationMode.no_request, recirculation=True)
         )
         assert coord._dhw_hold_until == deadline
+
+
+class TestCoordinatorSubDeviceParenting:
+    """The four logical sub-devices hang off the physical heat pump device."""
+
+    @staticmethod
+    def _coordinator_with_entry(hass) -> tuple[LuxtronikCoordinator, ConfigEntry]:
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={CONF_HOST: "192.168.1.100", CONF_PORT: DEFAULT_PORT},
+        )
+        entry.add_to_hass(hass)
+        coord = _make_coordinator(
+            hass=hass,
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Code_WP_akt": "LWP 10",
+            },
+            parameters={
+                "ID_WP_SerienNummer_DATUM": 20230101,
+                "ID_WP_SerienNummer_HEX": 255,
+            },
+        )
+        coord.config_entry = entry
+        return coord, entry
+
+    async def test_sub_device_links_to_the_heatpump_by_registry_id(
+        self, hass: HomeAssistant
+    ) -> None:
+        """`via_device_id` carries the heat pump's registry id."""
+        coord, entry = self._coordinator_with_entry(hass)
+
+        heating = coord.get_device(DeviceKey.heating)
+
+        heatpump = dr.async_get(hass).async_get_device_by_identifier(
+            (DOMAIN, f"{coord.unique_id}_{DeviceKey.heatpump}".lower()),
+            entry.entry_id,
+        )
+        assert heatpump is not None
+        assert heating["via_device_id"] == heatpump.id
+
+    async def test_sub_device_does_not_use_the_deprecated_via_device(
+        self, hass: HomeAssistant
+    ) -> None:
+        """The identifier-tuple form was removed from `DeviceInfo` in HA 2026.9."""
+        coord, _entry = self._coordinator_with_entry(hass)
+
+        for key in (
+            DeviceKey.heating,
+            DeviceKey.domestic_water,
+            DeviceKey.cooling,
+            DeviceKey.ventilation,
+        ):
+            assert "via_device" not in coord.get_device(key)
+
+    async def test_the_heatpump_itself_is_not_parented(
+        self, hass: HomeAssistant
+    ) -> None:
+        """The physical unit is the root; it carries the serial instead."""
+        coord, _entry = self._coordinator_with_entry(hass)
+
+        heatpump = coord.get_device(DeviceKey.heatpump)
+
+        assert "via_device_id" not in heatpump
+        assert heatpump["serial_number"] == coord.unique_id
+
+    async def test_an_existing_heatpump_device_is_adopted_not_duplicated(
+        self, hass: HomeAssistant
+    ) -> None:
+        """Upgrades keep the device users already have.
+
+        Before this migration the heat pump device was created by
+        `entity_platform` from the identifier tuple. Registering it explicitly
+        has to find that same device, not add a second one beside it.
+        """
+        coord, entry = self._coordinator_with_entry(hass)
+        registry = dr.async_get(hass)
+        existing = registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"{coord.unique_id}_{DeviceKey.heatpump}".lower())},
+        )
+
+        heating = coord.get_device(DeviceKey.heating)
+
+        assert heating["via_device_id"] == existing.id
+        assert len(dr.async_entries_for_config_entry(registry, entry.entry_id)) == 1
+
+    async def test_sub_devices_survive_without_a_config_entry(
+        self, hass: HomeAssistant
+    ) -> None:
+        """`config_flow` builds entry-less coordinators; that must not raise."""
+        coord = _make_coordinator(
+            hass=hass,
+            calculations={
+                "ID_WEB_SoftStand": "V3.90.1",
+                "ID_WEB_Code_WP_akt": "LWP 10",
+            },
+            parameters={
+                "ID_WP_SerienNummer_DATUM": 20230101,
+                "ID_WP_SerienNummer_HEX": 255,
+            },
+        )
+        assert coord.config_entry is None
+
+        heating = coord.get_device(DeviceKey.heating)
+
+        assert "via_device_id" not in heating
+        assert "serial_number" not in heating
