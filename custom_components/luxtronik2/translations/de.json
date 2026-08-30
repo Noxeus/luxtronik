@@ -610,6 +610,7 @@
                     "23": "Minimale Wärmequellen-Austrittstemperatur Kühlung",
                     "24": "LPC",
                     "25": "Neustart",
+                    "26": "TR Erhöhung max",
                     "27": "Vorlauf max."
                 },
                 "state_attributes": {
@@ -645,6 +646,7 @@
                             "23": "Minimale Wärmequellen-Austrittstemperatur Kühlung",
                             "24": "LPC",
                             "25": "Neustart",
+                            "26": "TR Erhöhung max",
                             "27": "Vorlauf max."
                         }
                     },
@@ -680,6 +682,7 @@
                             "23": "Minimale Wärmequellen-Austrittstemperatur Kühlung",
                             "24": "LPC",
                             "25": "Neustart",
+                            "26": "TR Erhöhung max",
                             "27": "Vorlauf max."
                         }
                     },
@@ -715,6 +718,7 @@
                             "23": "Minimale Wärmequellen-Austrittstemperatur Kühlung",
                             "24": "LPC",
                             "25": "Neustart",
+                            "26": "TR Erhöhung max",
                             "27": "Vorlauf max."
                         }
                     },
@@ -750,6 +754,7 @@
                             "23": "Minimale Wärmequellen-Austrittstemperatur Kühlung",
                             "24": "LPC",
                             "25": "Neustart",
+                            "26": "TR Erhöhung max",
                             "27": "Vorlauf max."
                         }
                     },

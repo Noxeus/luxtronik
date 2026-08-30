@@ -610,6 +610,7 @@
                     "23": "Minimale uittredetemperatuur warmtebron koeling",
                     "24": "LPC",
                     "25": "Herstart",
+                    "26": "TR Verhoging max",
                     "27": "Aanvoer max."
                 },
                 "state_attributes": {
@@ -645,6 +646,7 @@
                             "23": "Minimale uittredetemperatuur warmtebron koeling",
                             "24": "LPC",
                             "25": "Herstart",
+                            "26": "TR Verhoging max",
                             "27": "Aanvoer max."
                         }
                     },
@@ -680,6 +682,7 @@
                             "23": "Minimale uittredetemperatuur warmtebron koeling",
                             "24": "LPC",
                             "25": "Herstart",
+                            "26": "TR Verhoging max",
                             "27": "Aanvoer max."
                         }
                     },
@@ -715,6 +718,7 @@
                             "23": "Minimale uittredetemperatuur warmtebron koeling",
                             "24": "LPC",
                             "25": "Herstart",
+                            "26": "TR Verhoging max",
                             "27": "Aanvoer max."
                         }
                     },
@@ -750,6 +754,7 @@
                             "23": "Minimale uittredetemperatuur warmtebron koeling",
                             "24": "LPC",
                             "25": "Herstart",
+                            "26": "TR Verhoging max",
                             "27": "Aanvoer max."
                         }
                     },

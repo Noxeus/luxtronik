@@ -610,6 +610,7 @@
                     "23": "Minimalna temperatura wylotowa dolnego źródła przy chłodzeniu",
                     "24": "LPC",
                     "25": "Restart",
+                    "26": "Maksymalny wzrost temperatury powrotu",
                     "27": "Maksymalna temperatura zasilania"
                 },
                 "state_attributes": {
@@ -645,6 +646,7 @@
                             "23": "Minimalna temperatura wylotowa dolnego źródła przy chłodzeniu",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maksymalny wzrost temperatury powrotu",
                             "27": "Maksymalna temperatura zasilania"
                         }
                     },
@@ -680,6 +682,7 @@
                             "23": "Minimalna temperatura wylotowa dolnego źródła przy chłodzeniu",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maksymalny wzrost temperatury powrotu",
                             "27": "Maksymalna temperatura zasilania"
                         }
                     },
@@ -715,6 +718,7 @@
                             "23": "Minimalna temperatura wylotowa dolnego źródła przy chłodzeniu",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maksymalny wzrost temperatury powrotu",
                             "27": "Maksymalna temperatura zasilania"
                         }
                     },
@@ -750,6 +754,7 @@
                             "23": "Minimalna temperatura wylotowa dolnego źródła przy chłodzeniu",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maksymalny wzrost temperatury powrotu",
                             "27": "Maksymalna temperatura zasilania"
                         }
                     },

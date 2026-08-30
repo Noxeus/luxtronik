@@ -338,7 +338,7 @@ class LuxSwitchoffReason(Enum):
     min_heat_source_out_cooling = 23
     LPC = 24  # upstream's guess: possibly "limit power consumption"
     restart = 25
-    undefined_26 = 26  # ???
+    maximum_return_temperature_increase = 26
     maximum_flow_temperature = 27
     undefined_28 = 28  # ???
     undefined_29 = 29  # ???

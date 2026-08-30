@@ -610,6 +610,7 @@
                     "23": "Minimální výstupní teplota zdroje tepla při chlazení",
                     "24": "LPC",
                     "25": "Restart",
+                    "26": "Maximální zvýšení teploty zpátečky",
                     "27": "Maximální teplota výstupu"
                 },
                 "state_attributes": {
@@ -645,6 +646,7 @@
                             "23": "Minimální výstupní teplota zdroje tepla při chlazení",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximální zvýšení teploty zpátečky",
                             "27": "Maximální teplota výstupu"
                         }
                     },
@@ -680,6 +682,7 @@
                             "23": "Minimální výstupní teplota zdroje tepla při chlazení",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximální zvýšení teploty zpátečky",
                             "27": "Maximální teplota výstupu"
                         }
                     },
@@ -715,6 +718,7 @@
                             "23": "Minimální výstupní teplota zdroje tepla při chlazení",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximální zvýšení teploty zpátečky",
                             "27": "Maximální teplota výstupu"
                         }
                     },
@@ -750,6 +754,7 @@
                             "23": "Minimální výstupní teplota zdroje tepla při chlazení",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximální zvýšení teploty zpátečky",
                             "27": "Maximální teplota výstupu"
                         }
                     },

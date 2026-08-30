@@ -610,6 +610,7 @@
                     "23": "Minimum heat source outlet cooling",
                     "24": "LPC",
                     "25": "Restart",
+                    "26": "Maximum return temperature increase",
                     "27": "Maximum flow temperature"
                 },
                 "state_attributes": {
@@ -645,6 +646,7 @@
                             "23": "Minimum heat source outlet cooling",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximum return temperature increase",
                             "27": "Maximum flow temperature"
                         }
                     },
@@ -680,6 +682,7 @@
                             "23": "Minimum heat source outlet cooling",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximum return temperature increase",
                             "27": "Maximum flow temperature"
                         }
                     },
@@ -715,6 +718,7 @@
                             "23": "Minimum heat source outlet cooling",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximum return temperature increase",
                             "27": "Maximum flow temperature"
                         }
                     },
@@ -750,6 +754,7 @@
                             "23": "Minimum heat source outlet cooling",
                             "24": "LPC",
                             "25": "Restart",
+                            "26": "Maximum return temperature increase",
                             "27": "Maximum flow temperature"
                         }
                     },
