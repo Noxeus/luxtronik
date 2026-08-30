@@ -516,6 +516,7 @@ class TestSwitchoffCodes:
         assert item.from_heatpump(3) == "evu lock"
         assert item.from_heatpump(11) == "flow rate"
         assert item.from_heatpump(25) == "restart"
+        assert item.from_heatpump(26) == "maximum return temperature increase"
         assert item.from_heatpump(27) == "maximum flow temperature"
 
     def test_every_code_is_named_and_translated(self):
@@ -545,8 +546,8 @@ class TestSwitchoffCodes:
         """Codes past the observed ones stay undocumented - keep asking for reports."""
         lux_overrides.update_Luxtronik_SwitchoffCodes()
         lux_overrides.warn_on_unknown_selection_codes()
-        assert SwitchoffFile("ID_WEB_Switchoff_file_Nr1").from_heatpump(26) is None
-        assert "26" in caplog.text
+        assert SwitchoffFile("ID_WEB_Switchoff_file_Nr1").from_heatpump(28) is None
+        assert "28" in caplog.text
 
     def test_nonzero_unknown_on_sentinel_class_still_warns(
         self, restore_selection_base, caplog

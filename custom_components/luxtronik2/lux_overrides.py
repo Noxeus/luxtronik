@@ -602,10 +602,22 @@ def update_Luxtronik_SwitchoffCodes():
         23: "min. heat source out cooling",
         24: "LPC",
         25: "restart",
-        # 27 is not in upstream's table: read off an HMD2 display, whose
-        # "Abschaltungen" log showed "Aanvoer max." for the same timestamps the
-        # switchoff history reported 27 (confirmed against a run that stopped
-        # at 66.0 degrees flow and resumed two minutes later).
+        # 26 and 27 are not in upstream's table. Both were read off an HMD2
+        # display, whose "Abschaltungen" log lines were matched to the
+        # switchoff history by timestamp.
+        #
+        # 26 showed "max. return increase" (EN) / "TR Verhoging max" (NL) /
+        # "TR Erh max" (DE, expanded to "TR Erhöhung max" in de.json),
+        # which the HMD2 manual (83055600 rev d, p22) defines as the maximum
+        # permitted overshoot of the return temperature: once the return runs
+        # that far above its setpoint the controller ignores its internal
+        # minimum run times and switches every heat generator off.
+        # The logged event fits: a heating request started 5 minutes after a
+        # DHW run with the return still at ~51 degrees and ran for 30 seconds.
+        26: "maximum return temperature increase",
+        # 27 showed "Aanvoer max." for the same timestamps the switchoff
+        # history reported 27 (confirmed against a run that stopped at 66.0
+        # degrees flow and resumed two minutes later).
         27: "maximum flow temperature",
     }
 
