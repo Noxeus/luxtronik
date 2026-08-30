@@ -184,8 +184,13 @@ class TestRedactLogRecords:
 
     @pytest.mark.asyncio
     async def test_device_identifiers_are_redacted(self):
-        """M9: device identifiers/via_device/configuration_url embed the
-        serial number and host, and must be redacted like core integrations."""
+        """M9: device identifiers/configuration_url embed the serial number
+        and host, and must be redacted like core integrations.
+
+        `via_device_id` is a device registry id, which carries neither, so it
+        stays readable: it is what shows the sub-devices hang off the heat
+        pump.
+        """
         from custom_components.luxtronik2.diagnostics import (
             async_get_config_entry_diagnostics,
         )
@@ -211,7 +216,7 @@ class TestRedactLogRecords:
             },
             "heating": {
                 "identifiers": {("luxtronik2", "20230101_0xff_heating")},
-                "via_device": ("luxtronik2", "20230101_0xff_heatpump"),
+                "via_device_id": "0123456789abcdef0123456789abcdef",
                 "name": "heating",
             },
         }
@@ -227,7 +232,10 @@ class TestRedactLogRecords:
         assert result["devices"]["heatpump"]["identifiers"] == REDACTED
         assert result["devices"]["heatpump"]["configuration_url"] == REDACTED
         assert result["devices"]["heating"]["identifiers"] == REDACTED
-        assert result["devices"]["heating"]["via_device"] == REDACTED
+        assert (
+            result["devices"]["heating"]["via_device_id"]
+            == "0123456789abcdef0123456789abcdef"
+        )
         # Non-sensitive fields must survive untouched
         assert result["devices"]["heatpump"]["name"] == "heatpump"
 
