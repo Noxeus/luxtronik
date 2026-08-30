@@ -606,7 +606,8 @@ def update_Luxtronik_SwitchoffCodes():
         # display, whose "Abschaltungen" log lines were matched to the
         # switchoff history by timestamp.
         #
-        # 26 showed "max. return increase" (EN) / "TR Verhoging max" (NL),
+        # 26 showed "max. return increase" (EN) / "TR Verhoging max" (NL) /
+        # "TR Erh max" (DE, expanded to "TR Erhöhung max" in de.json),
         # which the HMD2 manual (83055600 rev d, p22) defines as the maximum
         # permitted overshoot of the return temperature: once the return runs
         # that far above its setpoint the controller ignores its internal
