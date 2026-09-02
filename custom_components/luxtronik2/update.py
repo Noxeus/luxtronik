@@ -7,7 +7,13 @@ from datetime import UTC, datetime, timedelta
 import re
 from typing import Final
 
-from aiohttp import ClientTimeout
+from aiohttp import (
+    ClientError,
+    ClientResponse,
+    ClientResponseError,
+    ClientTimeout,
+    InvalidURL,
+)
 from homeassistant.components.update import UpdateEntity, UpdateEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, EntityCategory
@@ -31,12 +37,18 @@ from .const import (
     SensorKey,
 )
 from .coordinator import LuxtronikCoordinator
+from .download_portal_ssl import async_get_download_portal_ssl_context
 from .lux_helper import get_firmware_download_id, get_manufacturer_firmware_url_by_model
 from .model import LuxtronikUpdateEntityDescription
 
 # endregion Imports
 
 PARALLEL_UPDATES = 0
+
+
+class DownloadPortalError(Exception):
+    """A download portal response we cannot use, and that is worth reporting."""
+
 
 MIN_TIME_BETWEEN_UPDATES: Final = timedelta(hours=1)
 
@@ -177,6 +189,25 @@ class LuxtronikUpdateEntity(  # type: ignore  # pyright: ignore[reportIncompatib
         ):
             await self._request_available_firmware_version()
 
+    @staticmethod
+    def _raise_for_portal_status(response: ClientResponse) -> None:
+        """Raise on a non-200 response from the download portal.
+
+        A 5xx is an outage on their side and nothing the user can act on, so it
+        is raised as a ClientError and ends up in the log at debug level. Any
+        other status may point at a wrong download ID on our side and stays loud.
+        """
+        if response.status == 200:
+            return
+        if response.status >= 500:
+            raise ClientResponseError(
+                response.request_info,
+                response.history,
+                status=response.status,
+                message=f"HTTP error: {response.status}",
+            )
+        raise DownloadPortalError(f"HTTP error: {response.status}")
+
     async def _request_available_firmware_version(self) -> None:
         """Request the latest available firmware version from the download portal."""
         download_id = get_firmware_download_id(self.installed_version)
@@ -184,13 +215,20 @@ class LuxtronikUpdateEntity(  # type: ignore  # pyright: ignore[reportIncompatib
             self.__firmware_version_available = STATE_UNAVAILABLE
             return
 
+        version_parsed = False
         try:
             session = async_get_clientsession(self.hass)
+            # The download portal serves an incomplete certificate chain, so the
+            # request needs our pinned CA bundle. See download_portal_ssl.py.
+            ssl_context = await async_get_download_portal_ssl_context(self.hass)
+            # True is aiohttp's default: verify against the default context.
+            portal_ssl = ssl_context if ssl_context is not None else True
             async with session.get(
-                f"{DOWNLOAD_PORTAL_URL}{download_id}", timeout=ClientTimeout(total=30)
+                f"{DOWNLOAD_PORTAL_URL}{download_id}",
+                timeout=ClientTimeout(total=30),
+                ssl=portal_ssl,
             ) as response:
-                if response.status != 200:
-                    raise Exception(f"HTTP error: {response.status}")
+                self._raise_for_portal_status(response)
 
                 header_content_disposition = response.headers.get(
                     "Content-Disposition", ""
@@ -205,18 +243,33 @@ class LuxtronikUpdateEntity(  # type: ignore  # pyright: ignore[reportIncompatib
                 self.__firmware_version_available = self.extract_firmware_version(
                     filename
                 )
+                version_parsed = True
 
-            async with session.get(  # pragma: no cover
-                f"{CHANGELOG_URL}{download_id}", timeout=ClientTimeout(total=30)
+            async with session.get(
+                f"{CHANGELOG_URL}{download_id}",
+                timeout=ClientTimeout(total=30),
+                ssl=portal_ssl,
             ) as response:
-                if response.status != 200:
-                    raise Exception(f"HTTP error: {response.status}")
+                self._raise_for_portal_status(response)
 
                 self.__firmware_version_changelog = await response.text()
 
-        except Exception:
-            LOGGER.warning(
-                "Could not request download portal firmware version",
-                exc_info=True,
-            )
-            self.__firmware_version_available = STATE_UNAVAILABLE
+        except Exception as err:
+            # An unreachable or failing portal is not actionable for the user, so
+            # it stays out of the log at warning level. InvalidURL is excluded on
+            # purpose: a malformed URL would be a bug on our side.
+            if isinstance(err, ClientError | TimeoutError) and not isinstance(
+                err, InvalidURL
+            ):
+                LOGGER.debug(
+                    "Could not request download portal firmware version: %s", err
+                )
+            else:
+                LOGGER.warning(
+                    "Could not request download portal firmware version",
+                    exc_info=True,
+                )
+            if not version_parsed:
+                # A failing changelog request must not discard a version we
+                # already read successfully.
+                self.__firmware_version_available = STATE_UNAVAILABLE

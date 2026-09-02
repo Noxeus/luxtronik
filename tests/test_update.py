@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import ssl
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.components.update import UpdateEntityFeature
@@ -74,6 +75,13 @@ def _make_update_entity(data=None):
     entity.hass = MagicMock()
     entity.hass.config.time_zone = "UTC"
     entity.hass.config.language = "en"
+
+    # Run executor jobs inline: a bare MagicMock returns a non-awaitable, which
+    # silently pushes anything using the executor down its failure path.
+    async def _run_executor_job(func, *args):
+        return func(*args)
+
+    entity.hass.async_add_executor_job = AsyncMock(side_effect=_run_executor_job)
     entity.async_write_ha_state = MagicMock()
     entity.async_schedule_update_ha_state = MagicMock()
     return entity
@@ -480,3 +488,222 @@ class TestReleaseNotes:
         entity._LuxtronikUpdateEntity__firmware_version_changelog = "Fixes"
         result = entity.release_notes()
         assert result is not None
+
+
+# ===========================================================================
+# Download portal TLS workaround (issue #783)
+# ===========================================================================
+
+
+class TestDownloadPortalSslWorkaround:
+    """www.heatpump24.com serves an incomplete certificate chain."""
+
+    @pytest.mark.asyncio
+    async def test_pinned_ssl_context_is_passed_to_portal_requests(self):
+        entity = _make_update_entity()
+        entity._attr_state = "V3.90.1"
+        sentinel_context = object()
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.headers = {"Content-Disposition": "filename=wpVXXXX_V3.91.0.zip"}
+        mock_response.text = AsyncMock(return_value="Bug fixes")
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=False)
+
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+
+        with (
+            patch(
+                "custom_components.luxtronik2.update.async_get_clientsession",
+                return_value=mock_session,
+            ),
+            patch(
+                "custom_components.luxtronik2.update."
+                "async_get_download_portal_ssl_context",
+                new=AsyncMock(return_value=sentinel_context),
+            ),
+        ):
+            await entity._request_available_firmware_version()
+
+        assert mock_session.get.call_count == 2
+        for call in mock_session.get.call_args_list:
+            assert call.kwargs["ssl"] is sentinel_context
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_default_context_when_pin_unavailable(self):
+        """A context that cannot be built must not break the request."""
+        entity = _make_update_entity()
+        entity._attr_state = "V3.90.1"
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.headers = {"Content-Disposition": "filename=wpVXXXX_V3.91.0.zip"}
+        mock_response.text = AsyncMock(return_value="Bug fixes")
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=False)
+
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+
+        with (
+            patch(
+                "custom_components.luxtronik2.update.async_get_clientsession",
+                return_value=mock_session,
+            ),
+            patch(
+                "custom_components.luxtronik2.update."
+                "async_get_download_portal_ssl_context",
+                new=AsyncMock(return_value=None),
+            ),
+        ):
+            await entity._request_available_firmware_version()
+
+        for call in mock_session.get.call_args_list:
+            assert call.kwargs["ssl"] is True
+        assert entity._LuxtronikUpdateEntity__firmware_version_available == "V3.91.0"
+
+    @pytest.mark.asyncio
+    async def test_certificate_error_does_not_log_a_warning(self, caplog):
+        """An unreachable portal is not actionable, so it must not shout."""
+        import logging
+
+        from aiohttp import ClientConnectorCertificateError
+
+        entity = _make_update_entity()
+        entity._attr_state = "V3.90.1"
+
+        error = ClientConnectorCertificateError(
+            MagicMock(), ssl.SSLCertVerificationError("unable to get local issuer")
+        )
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(side_effect=error)
+
+        with (
+            patch(
+                "custom_components.luxtronik2.update.async_get_clientsession",
+                return_value=mock_session,
+            ),
+            patch(
+                "custom_components.luxtronik2.update."
+                "async_get_download_portal_ssl_context",
+                new=AsyncMock(return_value=None),
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            await entity._request_available_firmware_version()
+
+        assert (
+            entity._LuxtronikUpdateEntity__firmware_version_available
+            == STATE_UNAVAILABLE
+        )
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert not [
+            r for r in warnings if "download portal firmware version" in r.getMessage()
+        ]
+
+    @pytest.mark.asyncio
+    async def test_unexpected_error_still_logs_a_warning(self, caplog):
+        """Genuine bugs on our side must stay visible."""
+        import logging
+
+        entity = _make_update_entity()
+        entity._attr_state = "V3.90.1"
+
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(side_effect=ValueError("boom"))
+
+        with (
+            patch(
+                "custom_components.luxtronik2.update.async_get_clientsession",
+                return_value=mock_session,
+            ),
+            patch(
+                "custom_components.luxtronik2.update."
+                "async_get_download_portal_ssl_context",
+                new=AsyncMock(return_value=None),
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            await entity._request_available_firmware_version()
+
+        assert [
+            r
+            for r in caplog.records
+            if r.levelno >= logging.WARNING
+            and "download portal firmware version" in r.getMessage()
+        ]
+
+    @pytest.mark.asyncio
+    async def test_portal_server_error_does_not_log_a_warning(self, caplog):
+        """A 5xx is the portal being broken, not something the user can fix."""
+        import logging
+
+        entity = _make_update_entity()
+        entity._attr_state = "V3.90.1"
+
+        mock_response = AsyncMock()
+        mock_response.status = 503
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=False)
+
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+
+        with (
+            patch(
+                "custom_components.luxtronik2.update.async_get_clientsession",
+                return_value=mock_session,
+            ),
+            patch(
+                "custom_components.luxtronik2.update."
+                "async_get_download_portal_ssl_context",
+                new=AsyncMock(return_value=None),
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            await entity._request_available_firmware_version()
+
+        assert (
+            entity._LuxtronikUpdateEntity__firmware_version_available
+            == STATE_UNAVAILABLE
+        )
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+    @pytest.mark.asyncio
+    async def test_portal_client_error_status_still_logs_a_warning(self, caplog):
+        """A 404 can mean our download ID mapping is wrong, which is actionable."""
+        import logging
+
+        entity = _make_update_entity()
+        entity._attr_state = "V3.90.1"
+
+        mock_response = AsyncMock()
+        mock_response.status = 404
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=False)
+
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(return_value=mock_response)
+
+        with (
+            patch(
+                "custom_components.luxtronik2.update.async_get_clientsession",
+                return_value=mock_session,
+            ),
+            patch(
+                "custom_components.luxtronik2.update."
+                "async_get_download_portal_ssl_context",
+                new=AsyncMock(return_value=None),
+            ),
+            caplog.at_level(logging.DEBUG),
+        ):
+            await entity._request_available_firmware_version()
+
+        assert [
+            r
+            for r in caplog.records
+            if r.levelno >= logging.WARNING
+            and "download portal firmware version" in r.getMessage()
+        ]
