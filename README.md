@@ -1,8 +1,12 @@
+[![HACS Default](https://img.shields.io/badge/HACS-Default-blue.svg)](https://github.com/custom-components/hacs)
+![GitHub License](https://img.shields.io/github/license/benpru/luxtronik)
+
 [![Release](https://img.shields.io/github/v/release/BenPru/luxtronik?label=latest-release&color=green&logo=github)](https://github.com/BenPru/luxtronik/releases/latest)
 ![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/BenPru/luxtronik/latest/total)
 [![Pre-release](https://img.shields.io/github/v/release/BenPru/luxtronik?include_prereleases&label=pre-release&color=orange&logo=github)](https://github.com/BenPru/luxtronik/releases)
 ![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads-pre/BenPru/luxtronik/latest/total?label=downloads@pre-release&color=orange)
-![GitHub License](https://img.shields.io/github/license/benpru/luxtronik)
+
+
 
 
 # Luxtronik Home Assistant Integration
@@ -177,7 +181,7 @@ If your system has an integrated **solar thermal collector** feeding the DHW tan
 
 #### 2.4.1 DHW Timer Schedule (Blocking Times)
 
-DHW also supports an editable weekly schedule of **blocking times** — windows during which automatic DHW heating is switched off, exposed as a set of Text entities. The controller offers three schedule shapes (whole week, weekdays + weekend, per day) selected by the *Hot water timer program* entity; only the selected shape's schedule entities are present, the others are disabled. See **[TIMER_SCHEDULES.md](TIMER_SCHEDULES.md)** for the entity list, the `HH:MM-HH:MM/...` format, and an important note on how DHW's blocking-time semantics differ from the heating schedule.
+DHW also supports an editable weekly schedule of **blocking times** — windows during which automatic DHW heating is switched off, exposed as a set of *DHW Blocking Times* Text entities. Leave them empty for no restriction; a window covering the whole day blocks DHW heating around the clock. The controller offers three schedule shapes (whole week, weekdays + weekend, per day) selected by the *Hot water timer program* entity; only the selected shape's schedule entities are present, the others are disabled. See **[TIMER_SCHEDULES.md](TIMER_SCHEDULES.md)** for the entity list, the `HH:MM-HH:MM/...` format, and an important note on how DHW's blocking-time semantics differ from the heating schedule.
 
 **Automating DHW** has its own section further down: [§3.1.2 Automating DHW](#312-automating-dhw).
 

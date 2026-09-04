@@ -61,12 +61,14 @@ If you need hot water during an active blocking window, switch *Mode* to *Party*
 | Name | Entity Type | Description |
 | :--- | :--- | :--- |
 | **Hot water timer program** | Select | Which schedule shape the controller uses: *Whole week*, *Weekdays + weekend*, or *Per day*. |
-| **DHW Timer Schedule (Week)** | Text | Exists while the *Week* shape is active. |
-| **DHW Timer Schedule (Weekdays)** | Text | Exists while *Weekday/Weekend* is active; covers Monday-Friday. |
-| **DHW Timer Schedule (Weekend)** | Text | Exists while *Weekday/Weekend* is active; covers Saturday-Sunday. |
-| **DHW Timer Schedule (Monday)** … **(Sunday)** | Text | One entity per day of the week, present while *Per day* is active. |
+| **DHW Blocking Times (Week)** | Text | Exists while the *Week* shape is active. |
+| **DHW Blocking Times (Weekdays)** | Text | Exists while *Weekday/Weekend* is active; covers Monday-Friday. |
+| **DHW Blocking Times (Weekend)** | Text | Exists while *Weekday/Weekend* is active; covers Saturday-Sunday. |
+| **DHW Blocking Times (Monday)** … **(Sunday)** | Text | One entity per day of the week, present while *Per day* is active. |
 
 The example above (`12:00-13:00/22:00-23:30`) blocks DHW heating over lunch and late in the evening.
+
+> **⚠️ Leave the field empty for "no restriction".** An empty schedule means DHW is never blocked. Entering a window that spans the whole day (for example `00:00-23:59`) does the opposite of what it looks like: it blocks automatic DHW heating around the clock.
 
 ## Heating Timer Schedule (Raise / Setback Times)
 

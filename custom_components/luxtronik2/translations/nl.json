@@ -1052,34 +1052,34 @@
         },
         "text": {
             "timer_dhw_schedule_week": {
-                "name": "Warmwater tijdschema (week)"
+                "name": "Warmwater blokkeertijden (week)"
             },
             "timer_dhw_schedule_weekday": {
-                "name": "Warmwater tijdschema (werkdagen)"
+                "name": "Warmwater blokkeertijden (werkdagen)"
             },
             "timer_dhw_schedule_weekend": {
-                "name": "Warmwater tijdschema (weekend)"
+                "name": "Warmwater blokkeertijden (weekend)"
             },
             "timer_dhw_schedule_monday": {
-                "name": "Warmwater tijdschema (maandag)"
+                "name": "Warmwater blokkeertijden (maandag)"
             },
             "timer_dhw_schedule_tuesday": {
-                "name": "Warmwater tijdschema (dinsdag)"
+                "name": "Warmwater blokkeertijden (dinsdag)"
             },
             "timer_dhw_schedule_wednesday": {
-                "name": "Warmwater tijdschema (woensdag)"
+                "name": "Warmwater blokkeertijden (woensdag)"
             },
             "timer_dhw_schedule_thursday": {
-                "name": "Warmwater tijdschema (donderdag)"
+                "name": "Warmwater blokkeertijden (donderdag)"
             },
             "timer_dhw_schedule_friday": {
-                "name": "Warmwater tijdschema (vrijdag)"
+                "name": "Warmwater blokkeertijden (vrijdag)"
             },
             "timer_dhw_schedule_saturday": {
-                "name": "Warmwater tijdschema (zaterdag)"
+                "name": "Warmwater blokkeertijden (zaterdag)"
             },
             "timer_dhw_schedule_sunday": {
-                "name": "Warmwater tijdschema (zondag)"
+                "name": "Warmwater blokkeertijden (zondag)"
             },
             "timer_heating_schedule_week": {
                 "name": "Verwarming tijdschema (week)"
