@@ -1052,34 +1052,34 @@
         },
         "text": {
             "timer_dhw_schedule_week": {
-                "name": "Časový plán teplé vody (týden)"
+                "name": "Blokovací časy teplé vody (týden)"
             },
             "timer_dhw_schedule_weekday": {
-                "name": "Časový plán teplé vody (pracovní dny)"
+                "name": "Blokovací časy teplé vody (pracovní dny)"
             },
             "timer_dhw_schedule_weekend": {
-                "name": "Časový plán teplé vody (víkend)"
+                "name": "Blokovací časy teplé vody (víkend)"
             },
             "timer_dhw_schedule_monday": {
-                "name": "Časový plán teplé vody (pondělí)"
+                "name": "Blokovací časy teplé vody (pondělí)"
             },
             "timer_dhw_schedule_tuesday": {
-                "name": "Časový plán teplé vody (úterý)"
+                "name": "Blokovací časy teplé vody (úterý)"
             },
             "timer_dhw_schedule_wednesday": {
-                "name": "Časový plán teplé vody (středa)"
+                "name": "Blokovací časy teplé vody (středa)"
             },
             "timer_dhw_schedule_thursday": {
-                "name": "Časový plán teplé vody (čtvrtek)"
+                "name": "Blokovací časy teplé vody (čtvrtek)"
             },
             "timer_dhw_schedule_friday": {
-                "name": "Časový plán teplé vody (pátek)"
+                "name": "Blokovací časy teplé vody (pátek)"
             },
             "timer_dhw_schedule_saturday": {
-                "name": "Časový plán teplé vody (sobota)"
+                "name": "Blokovací časy teplé vody (sobota)"
             },
             "timer_dhw_schedule_sunday": {
-                "name": "Časový plán teplé vody (neděle)"
+                "name": "Blokovací časy teplé vody (neděle)"
             },
             "timer_heating_schedule_week": {
                 "name": "Časový plán vytápění (týden)"

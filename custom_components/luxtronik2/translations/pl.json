@@ -1052,34 +1052,34 @@
         },
         "text": {
             "timer_dhw_schedule_week": {
-                "name": "Harmonogram czasowy ciepłej wody (tydzień)"
+                "name": "Czasy blokady ciepłej wody (tydzień)"
             },
             "timer_dhw_schedule_weekday": {
-                "name": "Harmonogram czasowy ciepłej wody (dni robocze)"
+                "name": "Czasy blokady ciepłej wody (dni robocze)"
             },
             "timer_dhw_schedule_weekend": {
-                "name": "Harmonogram czasowy ciepłej wody (weekend)"
+                "name": "Czasy blokady ciepłej wody (weekend)"
             },
             "timer_dhw_schedule_monday": {
-                "name": "Harmonogram czasowy ciepłej wody (poniedziałek)"
+                "name": "Czasy blokady ciepłej wody (poniedziałek)"
             },
             "timer_dhw_schedule_tuesday": {
-                "name": "Harmonogram czasowy ciepłej wody (wtorek)"
+                "name": "Czasy blokady ciepłej wody (wtorek)"
             },
             "timer_dhw_schedule_wednesday": {
-                "name": "Harmonogram czasowy ciepłej wody (środa)"
+                "name": "Czasy blokady ciepłej wody (środa)"
             },
             "timer_dhw_schedule_thursday": {
-                "name": "Harmonogram czasowy ciepłej wody (czwartek)"
+                "name": "Czasy blokady ciepłej wody (czwartek)"
             },
             "timer_dhw_schedule_friday": {
-                "name": "Harmonogram czasowy ciepłej wody (piątek)"
+                "name": "Czasy blokady ciepłej wody (piątek)"
             },
             "timer_dhw_schedule_saturday": {
-                "name": "Harmonogram czasowy ciepłej wody (sobota)"
+                "name": "Czasy blokady ciepłej wody (sobota)"
             },
             "timer_dhw_schedule_sunday": {
-                "name": "Harmonogram czasowy ciepłej wody (niedziela)"
+                "name": "Czasy blokady ciepłej wody (niedziela)"
             },
             "timer_heating_schedule_week": {
                 "name": "Harmonogram czasowy ogrzewania (tydzień)"

@@ -1052,34 +1052,34 @@
         },
         "text": {
             "timer_dhw_schedule_week": {
-                "name": "DHW Timer Schedule (Week)"
+                "name": "DHW Blocking Times (Week)"
             },
             "timer_dhw_schedule_weekday": {
-                "name": "DHW Timer Schedule (Weekdays)"
+                "name": "DHW Blocking Times (Weekdays)"
             },
             "timer_dhw_schedule_weekend": {
-                "name": "DHW Timer Schedule (Weekend)"
+                "name": "DHW Blocking Times (Weekend)"
             },
             "timer_dhw_schedule_monday": {
-                "name": "DHW Timer Schedule (Monday)"
+                "name": "DHW Blocking Times (Monday)"
             },
             "timer_dhw_schedule_tuesday": {
-                "name": "DHW Timer Schedule (Tuesday)"
+                "name": "DHW Blocking Times (Tuesday)"
             },
             "timer_dhw_schedule_wednesday": {
-                "name": "DHW Timer Schedule (Wednesday)"
+                "name": "DHW Blocking Times (Wednesday)"
             },
             "timer_dhw_schedule_thursday": {
-                "name": "DHW Timer Schedule (Thursday)"
+                "name": "DHW Blocking Times (Thursday)"
             },
             "timer_dhw_schedule_friday": {
-                "name": "DHW Timer Schedule (Friday)"
+                "name": "DHW Blocking Times (Friday)"
             },
             "timer_dhw_schedule_saturday": {
-                "name": "DHW Timer Schedule (Saturday)"
+                "name": "DHW Blocking Times (Saturday)"
             },
             "timer_dhw_schedule_sunday": {
-                "name": "DHW Timer Schedule (Sunday)"
+                "name": "DHW Blocking Times (Sunday)"
             },
             "timer_heating_schedule_week": {
                 "name": "Heating Timer Schedule (Week)"
